@@ -1,0 +1,548 @@
+import { useState } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import {
+  Typography,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  TextField,
+  Checkbox,
+  Button,
+  IconButton,
+  FormControl,
+  FormLabel,
+  FormGroup,
+  FormHelperText,
+  Autocomplete,
+  CssBaseline
+} from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers';
+import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import dayjs from 'dayjs';
+import type { NewsletterType } from '@/types';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
+
+interface FormData {
+  newsletterType: NewsletterType;
+  advertiser: string;
+  trackingUrls: string[];
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+  metrics: {
+    uniqueOpens: boolean;
+    totalOpens: boolean;
+    totalRecipients: boolean;
+    totalClicks: boolean;
+    ctr: boolean;
+  };
+}
+
+const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care', 'Breaking News'];
+
+const SAMPLE_ADVERTISERS = ['JCEDC', 'Choose New Jersey', 'Morgan Stanley', 'Englewood Health'];
+
+const RunReport = () => {
+  const theme = createTheme({
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          '*': {
+            outline: 'none !important',
+            '&:focus': {
+              outline: 'none !important',
+              boxShadow: 'none !important'
+            },
+            '&:focus-visible': {
+              outline: 'none !important',
+              boxShadow: 'none !important'
+            }
+          },
+          '.MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(0, 0, 0, 0.23) !important',
+            borderWidth: '1px !important'
+          },
+          '.MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(0, 0, 0, 0.23) !important'
+          }
+        }
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            '&.Mui-focused': {
+              '& .MuiOutlinedInput-notchedOutline': {
+                borderColor: 'rgba(0, 0, 0, 0.23) !important',
+                borderWidth: '1px !important',
+                boxShadow: 'none !important'
+              }
+            },
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'rgba(0, 0, 0, 0.23) !important'
+            }
+          },
+          notchedOutline: {
+            borderColor: 'rgba(0, 0, 0, 0.23) !important'
+          }
+        }
+      },
+      MuiInputBase: {
+        styleOverrides: {
+          root: {
+            '&.Mui-focused': {
+              outline: 'none !important',
+              boxShadow: 'none !important'
+            }
+          }
+        }
+      },
+      MuiTextField: {
+        defaultProps: {
+          variant: 'outlined'
+        },
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              '&.Mui-focused': {
+                outline: 'none !important',
+                boxShadow: 'none !important',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(0, 0, 0, 0.23) !important',
+                  borderWidth: '1px !important'
+                }
+              }
+            }
+          }
+        }
+      },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            '&.Mui-focused': {
+              color: 'rgba(0, 0, 0, 0.87) !important'
+            }
+          }
+        }
+      },
+      MuiAutocomplete: {
+        styleOverrides: {
+          root: {
+            '& .MuiOutlinedInput-root': {
+              '&.Mui-focused': {
+                outline: 'none !important',
+                boxShadow: 'none !important',
+                '& .MuiOutlinedInput-notchedOutline': {
+                  borderColor: 'rgba(0, 0, 0, 0.23) !important',
+                  borderWidth: '1px !important'
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    typography: {
+      allVariants: {
+        fontFamily: 'inherit'
+      }
+    },
+    shape: {
+      borderRadius: 4
+    },
+    palette: {
+      background: {
+        default: '#ffffff'
+      }
+    }
+  });
+
+  const { control, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
+    defaultValues: {
+      newsletterType: 'AM',
+      advertiser: '',
+      trackingUrls: [''],
+      dateRange: {
+        startDate: dayjs().format('YYYY-MM-DD'),
+        endDate: dayjs().format('YYYY-MM-DD')
+      },
+      metrics: {
+        uniqueOpens: false,
+        totalOpens: false,
+        totalRecipients: false,
+        totalClicks: false,
+        ctr: false
+      }
+    }
+  });
+
+  const [trackingUrls, setTrackingUrls] = useState<string[]>(['']);
+
+  const handleAddUrl = () => {
+    setTrackingUrls([...trackingUrls, '']);
+  };
+
+  const handleRemoveUrl = (index: number) => {
+    if (trackingUrls.length > 1) {
+      setTrackingUrls(trackingUrls.filter((_, i) => i !== index));
+    }
+  };
+
+  const onSubmit = (data: FormData) => {
+    // Validate at least one metric is selected
+    const hasMetric = Object.values(data.metrics).some(value => value);
+    if (!hasMetric) {
+      alert('Please select at least one metric');
+      return;
+    }
+
+    // For now, just log the form data
+    console.log('Form submitted:', data);
+  };
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <div className="w-full">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Newsletter Type */}
+          <div>
+            <h3 className="text-[17.5px] font-semibold text-gray-900 tracking-wide uppercase mb-2.5">
+              Newsletter Type
+            </h3>
+            <div className="-mt-3">
+              <Controller
+                name="newsletterType"
+                control={control}
+                render={({ field }) => (
+                  <RadioGroup row {...field} className="gap-3">
+                    {NEWSLETTER_TYPES.map((type) => (
+                      <FormControlLabel
+                        key={type}
+                        value={type}
+                        control={
+                          <Radio
+                            size="small"
+                            value={type}
+                            sx={{
+                              '&.Mui-checked': {
+                                color: '#159581',
+                              },
+                            }}
+                          />
+                        }
+                        label={type}
+                        className="mr-0"
+                      />
+                    ))}
+                  </RadioGroup>
+                )}
+              />
+            </div>
+          </div>
+
+          {/* Advertiser Information */}
+          <div>
+            <h3 className="text-[17.5px] font-semibold text-gray-900 tracking-wide uppercase mb-2.5">
+              Advertiser Information
+            </h3>
+            <div className="space-y-4">
+              <Controller
+                name="advertiser"
+                control={control}
+                render={({ field }) => (
+                  <Autocomplete
+                    {...field}
+                    options={SAMPLE_ADVERTISERS}
+                    renderInput={(params) => (
+                      <TextField {...params} label="Advertiser" size="small" />
+                    )}
+                    onChange={(_, value) => field.onChange(value)}
+                    size="small"
+                  />
+                )}
+              />
+              <div className="space-y-3">
+                {trackingUrls.map((_, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Controller
+                      name={`trackingUrls.${index}`}
+                      control={control}
+                      render={({ field }) => (
+                        <TextField
+                          {...field}
+                          fullWidth
+                          size="small"
+                          label="Advertisement URL or Keyword"
+                          sx={{
+                            '& .MuiOutlinedInput-root': {
+                              '&.Mui-focused': {
+                                outline: 'none !important',
+                                boxShadow: 'none !important',
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                  borderColor: 'rgba(0, 0, 0, 0.23) !important',
+                                  borderWidth: '1px !important',
+                                },
+                              },
+                            },
+                          }}
+                        />
+                      )}
+                    />
+                    {index > 0 && (
+                      <IconButton
+                        size="small"
+                        onClick={() => handleRemoveUrl(index)}
+                        sx={{
+                          color: '#951521'
+                        }}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    )}
+                  </div>
+                ))}
+                <Button
+                  startIcon={<AddIcon />}
+                  onClick={handleAddUrl}
+                  variant="outlined"
+                  size="small"
+                  sx={{
+                    color: '#159581',
+                    borderColor: '#159581',
+                    '&:hover': {
+                      borderColor: '#159581',
+                      backgroundColor: 'rgba(21, 149, 129, 0.05)'
+                    }
+                  }}
+                  className="normal-case"
+                >
+                  Add URL or Keyword
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Date Range */}
+          <div>
+            <h3 className="text-[17.5px] font-semibold text-gray-900 tracking-wide uppercase mb-2.5">
+              Date Range
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <Controller
+                name="dateRange.startDate"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    label="Start Date"
+                    value={dayjs(field.value)}
+                    onChange={(date) => field.onChange(date?.format('YYYY-MM-DD'))}
+                    slotProps={{ 
+                      textField: { 
+                        size: 'small',
+                        sx: {
+                          '& .MuiOutlinedInput-root': {
+                            '&.Mui-focused': {
+                              outline: 'none !important',
+                              boxShadow: 'none !important',
+                              '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'rgba(0, 0, 0, 0.23) !important',
+                                borderWidth: '1px !important'
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }}
+                  />
+                )}
+              />
+              <Controller
+                name="dateRange.endDate"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    label="End Date"
+                    value={dayjs(field.value)}
+                    onChange={(date) => field.onChange(date?.format('YYYY-MM-DD'))}
+                    slotProps={{ 
+                      textField: { 
+                        size: 'small',
+                        sx: {
+                          '& .MuiOutlinedInput-root': {
+                            '&.Mui-focused': {
+                              outline: 'none !important',
+                              boxShadow: 'none !important',
+                              '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'rgba(0, 0, 0, 0.23) !important',
+                                borderWidth: '1px !important'
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }}
+                  />
+                )}
+              />
+            </div>
+          </div>
+
+          {/* Metrics */}
+          <div>
+            <h3 className="text-[17.5px] font-semibold text-gray-900 tracking-wide uppercase mb-2.5">
+              Metrics
+            </h3>
+            <div className="-mt-3">
+              <FormGroup row className="gap-x-3 gap-y-2">
+                <Controller
+                  name="metrics.uniqueOpens"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          {...field}
+                          size="small"
+                          value={field.value}
+                          sx={{
+                            '&.Mui-checked': {
+                              color: '#159581',
+                            },
+                          }}
+                        />
+                      }
+                      label="Unique Opens"
+                      className="text-sm m-0"
+                    />
+                  )}
+                />
+                <Controller
+                  name="metrics.totalOpens"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          {...field}
+                          size="small"
+                          value={field.value}
+                          sx={{
+                            '&.Mui-checked': {
+                              color: '#159581',
+                            },
+                          }}
+                        />
+                      }
+                      label="Total Opens"
+                      className="text-sm m-0"
+                    />
+                  )}
+                />
+                <Controller
+                  name="metrics.totalRecipients"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          {...field}
+                          size="small"
+                          value={field.value}
+                          sx={{
+                            '&.Mui-checked': {
+                              color: '#159581',
+                            },
+                          }}
+                        />
+                      }
+                      label="Total Recipients"
+                      className="text-sm m-0"
+                    />
+                  )}
+                />
+                <Controller
+                  name="metrics.totalClicks"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          {...field}
+                          size="small"
+                          value={field.value}
+                          sx={{
+                            '&.Mui-checked': {
+                              color: '#159581',
+                            },
+                          }}
+                        />
+                      }
+                      label="Total Clicks"
+                      className="text-sm m-0"
+                    />
+                  )}
+                />
+                <Controller
+                  name="metrics.ctr"
+                  control={control}
+                  render={({ field }) => (
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          {...field}
+                          size="small"
+                          value={field.value}
+                          sx={{
+                            '&.Mui-checked': {
+                              color: '#159581',
+                            },
+                          }}
+                        />
+                      }
+                      label="CTR"
+                      className="text-sm m-0"
+                    />
+                  )}
+                />
+              </FormGroup>
+              <FormHelperText className="mt-2">Please select at least one metric</FormHelperText>
+            </div>
+          </div>
+
+          {/* Submit Button */}
+          <div className="flex justify-center mt-4">
+            <Button
+              type="submit"
+              variant="contained"
+              size="medium"
+              disabled={
+                !watch('advertiser') ||
+                !watch('trackingUrls.0') ||
+                !Object.values(watch('metrics')).some(value => value)
+              }
+              sx={{
+                '&.MuiButton-contained': {
+                  backgroundColor: '#159581',
+                  fontWeight: 600,
+                  letterSpacing: .8,
+                  '&:hover': {
+                    backgroundColor: '#138572'
+                  },
+                  '&.Mui-disabled': {
+                    backgroundColor: '#e5e7eb'
+                  }
+                }
+              }}
+              className="px-8 py-2 rounded normal-case font-semibold"
+            >
+              Generate Report
+            </Button>
+          </div>
+        </form>
+      </div>
+    </ThemeProvider>
+  );
+};
+
+export default RunReport; 
