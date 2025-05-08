@@ -31,10 +31,11 @@ const Settings = () => {
   });
   const [isAddAdvertiserOpen, setIsAddAdvertiserOpen] = useState(false);
   const [newAdvertiser, setNewAdvertiser] = useState('');
+  const [settingsPath, setSettingsPath] = useState<string>('');
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
-    severity: 'success' | 'error';
+    severity: 'success' | 'error' | 'info' | 'warning';
   }>({
     open: false,
     message: '',
@@ -43,13 +44,26 @@ const Settings = () => {
 
   useEffect(() => {
     loadSettings();
+    getSettingsPath();
   }, []);
+
+  const getSettingsPath = async () => {
+    try {
+      const path = await invoke<string>('get_settings_path');
+      setSettingsPath(path);
+      console.log('Settings path:', path);
+    } catch (error) {
+      console.error('Error getting settings path:', error);
+    }
+  };
 
   const loadSettings = async () => {
     try {
       const loadedSettings = await invoke<Settings>('load_settings');
+      console.log('Loaded settings:', loadedSettings);
       setSettings(loadedSettings);
     } catch (error) {
+      console.error('Error loading settings:', error);
       setSnackbar({
         open: true,
         message: `Failed to load settings: ${error}`,
@@ -60,13 +74,18 @@ const Settings = () => {
 
   const handleSaveSettings = async () => {
     try {
+      console.log('Saving settings:', settings);
       await invoke('save_settings', { settings });
+      console.log('Settings saved successfully');
       setSnackbar({
         open: true,
         message: 'Settings saved successfully',
         severity: 'success',
       });
+      // Reload settings to verify they were saved correctly
+      await loadSettings();
     } catch (error) {
+      console.error('Error saving settings:', error);
       setSnackbar({
         open: true,
         message: `Failed to save settings: ${error}`,
@@ -77,10 +96,12 @@ const Settings = () => {
 
   const handleAddAdvertiser = () => {
     if (newAdvertiser.trim()) {
+      console.log('Adding advertiser:', newAdvertiser.trim());
       const updatedSettings = {
         ...settings,
         advertisers: [...settings.advertisers, newAdvertiser.trim()],
       };
+      console.log('Updated settings:', updatedSettings);
       setSettings(updatedSettings);
       setNewAdvertiser('');
       setIsAddAdvertiserOpen(false);
@@ -159,6 +180,25 @@ const Settings = () => {
           >
             Save Configuration
           </Button>
+          
+          {/* Debug button to show settings path */}
+          <div className="mt-2 text-xs text-gray-500">
+            <p>Settings file: {settingsPath}</p>
+            <Button 
+              size="small" 
+              variant="outlined"
+              className="mt-1 text-xs"
+              onClick={() => {
+                setSnackbar({
+                  open: true,
+                  message: `Settings path: ${settingsPath}`,
+                  severity: 'info',
+                });
+              }}
+            >
+              Debug Info
+            </Button>
+          </div>
         </div>
       </div>
 

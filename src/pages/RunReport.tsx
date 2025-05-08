@@ -62,10 +62,13 @@ const RunReport = () => {
   const loadSettings = async () => {
     try {
       setLoading(true);
+      console.log('Loading settings in RunReport...');
       const settings = await invoke<Settings>('load_settings');
+      console.log('Loaded settings in RunReport:', settings);
       setAdvertisers(settings.advertisers);
+      console.log('Advertisers set to:', settings.advertisers);
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      console.error('Failed to load settings in RunReport:', error);
     } finally {
       setLoading(false);
     }

@@ -65,8 +65,11 @@ fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     let app_dir = app.path().app_config_dir()
         .map_err(|e| format!("Could not get app directory: {}", e))?;
     let settings_path = app_dir.join("settings.json");
+    
+    println!("Loading settings from: {:?}", settings_path);
 
     if !settings_path.exists() {
+        println!("Settings file does not exist, returning default settings");
         return Ok(Settings {
             mailchimp_api_key: String::new(),
             mailchimp_audience_id: String::new(),
@@ -77,26 +80,67 @@ fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     let settings_str = fs::read_to_string(&settings_path)
         .map_err(|e| format!("Failed to read settings: {}", e))?;
     
-    serde_json::from_str(&settings_str)
-        .map_err(|e| format!("Failed to parse settings: {}", e))
+    println!("Settings content: {}", settings_str);
+    
+    let settings = serde_json::from_str(&settings_str)
+        .map_err(|e| format!("Failed to parse settings: {}", e))?;
+    
+    println!("Parsed settings: {:?}", settings);
+    
+    Ok(settings)
 }
 
 #[tauri::command]
 fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
+    // Get the app config directory
     let app_dir = app.path().app_config_dir()
         .map_err(|e| format!("Could not get app directory: {}", e))?;
     
-    // Create the config directory if it doesn't exist
-    fs::create_dir_all(&app_dir)
-        .map_err(|e| format!("Failed to create config directory: {}", e))?;
+    println!("Saving settings to directory: {:?}", app_dir);
     
+    // Create the config directory and all parent directories if they don't exist
+    if !app_dir.exists() {
+        println!("Creating config directory: {:?}", app_dir);
+        fs::create_dir_all(&app_dir)
+            .map_err(|e| format!("Failed to create config directory: {} - Error: {}", app_dir.display(), e))?;
+    }
+    
+    // Verify the directory exists and is writable
+    if !app_dir.exists() {
+        return Err(format!("Config directory does not exist after creation attempt: {}", app_dir.display()));
+    }
+    
+    // Set up the settings file path
     let settings_path = app_dir.join("settings.json");
+    println!("Settings file path: {:?}", settings_path);
 
+    // Serialize the settings to JSON
     let settings_str = serde_json::to_string_pretty(&settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    
+    println!("Settings to save: {}", settings_str);
 
-    fs::write(&settings_path, settings_str)
-        .map_err(|e| format!("Failed to write settings: {}", e))
+    // Write the settings to file
+    match fs::write(&settings_path, &settings_str) {
+        Ok(_) => {
+            println!("Settings saved successfully to {}", settings_path.display());
+            
+            // Verify the file was written correctly by reading it back
+            match fs::read_to_string(&settings_path) {
+                Ok(content) => {
+                    if content == settings_str {
+                        println!("File content verified");
+                    } else {
+                        println!("WARNING: File content verification failed - content mismatch");
+                    }
+                },
+                Err(e) => println!("WARNING: Could not verify file content: {}", e),
+            }
+            
+            Ok(())
+        },
+        Err(e) => Err(format!("Failed to write settings to {}: {}", settings_path.display(), e))
+    }
 }
 
 #[tauri::command]
@@ -603,6 +647,15 @@ fn download_csv(_app: tauri::AppHandle, report_data: serde_json::Value) -> Resul
     Ok(path_str)
 }
 
+#[tauri::command]
+fn get_settings_path(app: tauri::AppHandle) -> Result<String, String> {
+    let app_dir = app.path().app_config_dir()
+        .map_err(|e| format!("Could not get app directory: {}", e))?;
+    let settings_path = app_dir.join("settings.json");
+    
+    Ok(settings_path.to_string_lossy().to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -621,7 +674,8 @@ pub fn run() {
             delete_report,
             opener_open,
             download_report,
-            download_csv
+            download_csv,
+            get_settings_path
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
