@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TextField,
   Button,
@@ -13,8 +13,19 @@ import {
   DialogActions,
   Snackbar,
   Alert,
+  Paper,
+  InputAdornment,
+  Pagination,
+  Divider,
+  Chip,
 } from '@mui/material';
-import { Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
+import {
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  Search as SearchIcon,
+  ArrowUpward as SortAscIcon,
+  ArrowDownward as SortDescIcon,
+} from '@mui/icons-material';
 import { invoke } from '@tauri-apps/api/core';
 
 interface Settings {
@@ -41,6 +52,10 @@ const Settings = () => {
     message: '',
     severity: 'success',
   });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const itemsPerPage = 10;
 
   useEffect(() => {
     loadSettings();
@@ -180,6 +195,38 @@ const Settings = () => {
     }
   };
 
+  // Get filtered and sorted advertisers
+  const filteredAdvertisers = settings.advertisers
+    .filter(advertiser => 
+      advertiser.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortDirection === 'asc') {
+        return a.localeCompare(b);
+      } else {
+        return b.localeCompare(a);
+      }
+    });
+    
+  // Get paginated advertisers
+  const paginatedAdvertisers = filteredAdvertisers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+  
+  // Calculate total pages
+  const totalPages = Math.max(1, Math.ceil(filteredAdvertisers.length / itemsPerPage));
+  
+  // Handle page change
+  const handlePageChange = (event: React.ChangeEvent<unknown>, page: number) => {
+    setCurrentPage(page);
+  };
+  
+  // Toggle sort direction
+  const toggleSortDirection = () => {
+    setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
+  };
+
   const textFieldSx = {
     '& .MuiOutlinedInput-root': {
       '&.Mui-focused': {
@@ -266,7 +313,7 @@ const Settings = () => {
 
       {/* Advertisers Management */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold">Advertisers</h2>
           <Button
             startIcon={<AddIcon />}
@@ -277,27 +324,107 @@ const Settings = () => {
             Add Advertiser
           </Button>
         </div>
-        <List className="border rounded-lg">
-          {settings.advertisers.map((advertiser) => (
-            <ListItem
-              key={advertiser}
-              divider
-              className="hover:bg-gray-50"
-            >
-              <ListItemText primary={advertiser} />
-              <ListItemSecondaryAction>
-                <IconButton
-                  edge="end"
-                  size="small"
-                  onClick={() => handleDeleteAdvertiser(advertiser)}
-                  className="text-red-600 hover:text-red-800"
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </ListItemSecondaryAction>
-            </ListItem>
-          ))}
-        </List>
+        
+        {/* Search and Sort Controls */}
+        <div className="mb-4">
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search advertisers..."
+            value={searchTerm}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setCurrentPage(1); // Reset to first page on search
+            }}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton 
+                    size="small"
+                    onClick={toggleSortDirection}
+                    title={sortDirection === 'asc' ? 'Sort A-Z' : 'Sort Z-A'}
+                  >
+                    {sortDirection === 'asc' ? <SortAscIcon /> : <SortDescIcon />}
+                  </IconButton>
+                </InputAdornment>
+              )
+            }}
+            sx={textFieldSx}
+          />
+        </div>
+        
+        {/* Advertisers Stats */}
+        <div className="mb-3 flex justify-between items-center text-sm text-gray-500">
+          <div>
+            Total: <Chip 
+              size="small" 
+              label={settings.advertisers.length} 
+              className="ml-1" 
+              color="primary"
+            />
+          </div>
+          <div>
+            {searchTerm && (
+              <>Matching: <Chip 
+                size="small" 
+                label={filteredAdvertisers.length} 
+                className="ml-1"
+                color="secondary"
+              /></>
+            )}
+          </div>
+        </div>
+        
+        {/* Advertisers List */}
+        <Paper elevation={0} variant="outlined" className="mb-3">
+          {paginatedAdvertisers.length > 0 ? (
+            <List disablePadding>
+              {paginatedAdvertisers.map((advertiser, index) => (
+                <React.Fragment key={advertiser}>
+                  <ListItem className="hover:bg-gray-50 py-1">
+                    <ListItemText primary={advertiser} />
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={() => handleDeleteAdvertiser(advertiser)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                  {index < paginatedAdvertisers.length - 1 && <Divider component="li" />}
+                </React.Fragment>
+              ))}
+            </List>
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              {settings.advertisers.length === 0 
+                ? "No advertisers added yet" 
+                : "No advertisers matching your search"}
+            </div>
+          )}
+        </Paper>
+        
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex justify-center mt-4">
+            <Pagination 
+              count={totalPages} 
+              page={currentPage} 
+              onChange={handlePageChange}
+              size="small"
+              color="primary"
+              shape="rounded"
+            />
+          </div>
+        )}
       </div>
 
       {/* Add Advertiser Dialog */}
