@@ -56,7 +56,20 @@ const RunReport = () => {
 
   // Load settings including advertisers on component mount
   useEffect(() => {
+    console.log('RunReport component mounted, loading settings...');
     loadSettings();
+    
+    // Add a timer to reload settings every few seconds while the component is mounted
+    // This ensures any changes made in the Settings page are reflected here
+    const intervalId = setInterval(() => {
+      console.log('Reloading settings in RunReport...');
+      loadSettings();
+    }, 3000); // Reload every 3 seconds
+    
+    // Clean up interval on unmount
+    return () => {
+      clearInterval(intervalId);
+    };
   }, []);
 
   const loadSettings = async () => {
@@ -65,7 +78,15 @@ const RunReport = () => {
       console.log('Loading settings in RunReport...');
       const settings = await invoke<Settings>('load_settings');
       console.log('Loaded settings in RunReport:', settings);
-      setAdvertisers(settings.advertisers);
+      
+      // Check if advertisers have changed before updating state
+      if (JSON.stringify(settings.advertisers) !== JSON.stringify(advertisers)) {
+        console.log('Advertisers have changed, updating state...');
+        setAdvertisers(settings.advertisers);
+      } else {
+        console.log('Advertisers unchanged, keeping current state');
+      }
+      
       console.log('Advertisers set to:', settings.advertisers);
     } catch (error) {
       console.error('Failed to load settings in RunReport:', error);
