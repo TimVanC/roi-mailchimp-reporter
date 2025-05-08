@@ -25,7 +25,6 @@ import {
 } from '@mui/icons-material';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
-import { save } from '@tauri-apps/plugin-dialog';
 import type { NewsletterType } from '@/types';
 
 interface Report {
@@ -105,16 +104,19 @@ const Reports = () => {
 
   const handleDownload = async (report: Report) => {
     try {
-      const filePath = await save({
-        defaultPath: `${report.name}.json`,
-        filters: [{ name: 'JSON', extensions: ['json'] }],
+      // Use our CSV download function to get a CSV file just like the Excel export
+      const filePath = await invoke<string>('download_csv', { reportData: report.data });
+      setSnackbar({ 
+        open: true, 
+        message: `CSV report downloaded to: ${filePath}`, 
+        severity: 'success' 
       });
-      if (filePath) {
-        await invoke('write_report_file', { path: filePath, report });
-        setSnackbar({ open: true, message: 'Report downloaded.', severity: 'success' });
-      }
-    } catch (error) {
-      setSnackbar({ open: true, message: `Failed to download: ${error}`, severity: 'error' });
+    } catch (error: any) {
+      setSnackbar({ 
+        open: true, 
+        message: `Failed to download CSV: ${error}`, 
+        severity: 'error' 
+      });
     }
   };
 

@@ -29,4 +29,5 @@ tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 tempfile = "3"
 opener = "0.6.1"
+dirs = "5.0"
 
