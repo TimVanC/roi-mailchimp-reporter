@@ -438,7 +438,7 @@ fn opener_open(_app: tauri::AppHandle, path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<String, String> {
+fn download_report(_app: tauri::AppHandle, report: serde_json::Value) -> Result<String, String> {
     // Create a timestamp for the file name
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
     
@@ -468,14 +468,14 @@ fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<S
 }
 
 #[tauri::command]
-fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<String, String> {
+fn download_csv(_app: tauri::AppHandle, report_data: serde_json::Value) -> Result<String, String> {
     // Create a timestamp for the file name
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
     
     // Get the report name if available
-    let report_name = if let Some(name) = reportData.get("name").and_then(|v| v.as_str()) {
+    let report_name = if let Some(name) = report_data.get("name").and_then(|v| v.as_str()) {
         name.to_string()
-    } else if let Some(advertiser) = reportData.get("advertiser").and_then(|v| v.as_str()) {
+    } else if let Some(advertiser) = report_data.get("advertiser").and_then(|v| v.as_str()) {
         format!("{}_report", advertiser)
     } else {
         "mailchimp_report".to_string()
@@ -490,7 +490,7 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     csv.push_str("Date,Unique Opens,Total Opens,Total Recipients,Total Clicks,Ctr\n");
     
     // The report data is now in the "report_data" field
-    if let Some(report_entries) = reportData.get("report_data").and_then(|d| d.as_array()) {
+    if let Some(report_entries) = report_data.get("report_data").and_then(|d| d.as_array()) {
         // Report entries are already sorted by date in the backend
         for entry in report_entries {
             let date = entry.get("send_date").and_then(|d| d.as_str()).unwrap_or("N/A");
@@ -514,7 +514,7 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     } else {
         // If no report data found, use the original data format if available
         // Use the same CSV generation code as in open_report_in_excel function
-        if let Some(campaigns) = reportData.get("campaigns").and_then(|c| c.as_array()) {
+        if let Some(campaigns) = report_data.get("campaigns").and_then(|c| c.as_array()) {
             let mut campaign_data = Vec::new();
             
             for campaign in campaigns {

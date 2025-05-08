@@ -89,7 +89,7 @@ const Reports = () => {
   const handleOpenInExcel = async (report: Report) => {
     try {
       // Get the CSV file path from backend
-      const filePath = await invoke<string>('open_report_in_excel', { reportData: report.data });
+      const filePath = await invoke<string>('open_report_in_excel', { report_data: report.data });
       // Instead of opening with shell, let's try using the opener plugin directly
       await invoke('opener_open', { path: filePath });
       setSnackbar({ open: true, message: 'CSV file generated. It should open in Excel.', severity: 'success' });
@@ -105,7 +105,7 @@ const Reports = () => {
   const handleDownload = async (report: Report) => {
     try {
       // Use our CSV download function to get a CSV file just like the Excel export
-      const filePath = await invoke<string>('download_csv', { reportData: report.data });
+      const filePath = await invoke<string>('download_csv', { report_data: report.data });
       setSnackbar({ 
         open: true, 
         message: `CSV report downloaded to: ${filePath}`, 
@@ -122,10 +122,11 @@ const Reports = () => {
 
   const handleDelete = async (reportId: string) => {
     try {
-      await invoke('delete_report', { report_id: reportId });
+      await invoke('delete_report', { reportId: reportId });
       setReports((prev) => prev.filter((r) => r.id !== reportId));
       setSnackbar({ open: true, message: 'Report deleted.', severity: 'success' });
     } catch (error) {
+      console.error('Delete error:', error);
       setSnackbar({ open: true, message: `Failed to delete: ${error}`, severity: 'error' });
     }
   };
