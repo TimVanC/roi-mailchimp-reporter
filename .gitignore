@@ -48,3 +48,6 @@ out/
 # System Files
 Thumbs.db
 desktop.ini
+
+# Application Settings
+**/settings.json

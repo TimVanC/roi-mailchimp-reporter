@@ -14,13 +14,16 @@ import {
   FormGroup,
   FormHelperText,
   Autocomplete,
-  CssBaseline
+  CssBaseline,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import type { NewsletterType } from '@/types';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { invoke } from '@tauri-apps/api/core';
 
 interface FormData {
   newsletterType: NewsletterType;
@@ -178,6 +181,16 @@ const RunReport = () => {
 
   const [trackingUrls, setTrackingUrls] = useState<string[]>(['']);
 
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
   const handleAddUrl = () => {
     setTrackingUrls([...trackingUrls, '']);
   };
@@ -188,16 +201,68 @@ const RunReport = () => {
     }
   };
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     // Validate at least one metric is selected
     const hasMetric = Object.values(data.metrics).some(value => value);
     if (!hasMetric) {
-      alert('Please select at least one metric');
+      setSnackbar({
+        open: true,
+        message: 'Please select at least one metric',
+        severity: 'error',
+      });
       return;
     }
 
-    // For now, just log the form data
-    console.log('Form submitted:', data);
+    try {
+      // Clean up empty tracking URLs
+      const tracking_urls = data.trackingUrls.filter(url => url.trim() !== '');
+      
+      // Ensure we have at least one tracking URL
+      if (tracking_urls.length === 0) {
+        setSnackbar({
+          open: true,
+          message: 'Please add at least one advertisement URL or keyword',
+          severity: 'error',
+        });
+        return;
+      }
+
+      const response = await invoke<{ success: boolean; message: string; data: any }>('generate_report', {
+        request: {
+          newsletter_type: data.newsletterType,
+          advertiser: data.advertiser,
+          tracking_urls: tracking_urls,
+          date_range: {
+            start_date: data.dateRange.startDate,
+            end_date: data.dateRange.endDate,
+          },
+          metrics: {
+            unique_opens: data.metrics.uniqueOpens,
+            total_opens: data.metrics.totalOpens,
+            total_recipients: data.metrics.totalRecipients,
+            total_clicks: data.metrics.totalClicks,
+            ctr: data.metrics.ctr,
+          },
+        }
+      });
+
+      setSnackbar({
+        open: true,
+        message: response.success ? 'Report generated successfully!' : `Failed to generate report: ${response.message}`,
+        severity: response.success ? 'success' : 'error',
+      });
+
+      if (response.success) {
+        // TODO: Navigate to reports page or show report data
+        console.log('Report data:', response.data);
+      }
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: `Error generating report: ${error}`,
+        severity: 'error',
+      });
+    }
   };
 
   return (
@@ -540,6 +605,21 @@ const RunReport = () => {
             </Button>
           </div>
         </form>
+
+        {/* Snackbar for notifications */}
+        <Snackbar
+          open={snackbar.open}
+          autoHideDuration={6000}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+        >
+          <Alert
+            onClose={() => setSnackbar({ ...snackbar, open: false })}
+            severity={snackbar.severity}
+            sx={{ width: '100%' }}
+          >
+            {snackbar.message}
+          </Alert>
+        </Snackbar>
       </div>
     </ThemeProvider>
   );

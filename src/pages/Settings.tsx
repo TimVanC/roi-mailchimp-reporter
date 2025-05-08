@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   TextField,
   Button,
@@ -11,35 +11,90 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import { Delete as DeleteIcon, Add as AddIcon } from '@mui/icons-material';
+import { invoke } from '@tauri-apps/api/core';
+
+interface Settings {
+  mailchimp_api_key: string;
+  mailchimp_audience_id: string;
+  advertisers: string[];
+}
 
 const Settings = () => {
-  const [apiKey, setApiKey] = useState('');
-  const [audienceId, setAudienceId] = useState('');
-  const [advertisers, setAdvertisers] = useState<string[]>([
-    'JCEDC',
-    'Choose New Jersey',
-    'Morgan Stanley',
-    'Englewood Health'
-  ]);
+  const [settings, setSettings] = useState<Settings>({
+    mailchimp_api_key: '',
+    mailchimp_audience_id: '',
+    advertisers: [],
+  });
   const [isAddAdvertiserOpen, setIsAddAdvertiserOpen] = useState(false);
   const [newAdvertiser, setNewAdvertiser] = useState('');
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
-  const handleSaveSettings = () => {
-    // TODO: Save API settings
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      const loadedSettings = await invoke<Settings>('load_settings');
+      setSettings(loadedSettings);
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: `Failed to load settings: ${error}`,
+        severity: 'error',
+      });
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    try {
+      await invoke('save_settings', { settings });
+      setSnackbar({
+        open: true,
+        message: 'Settings saved successfully',
+        severity: 'success',
+      });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: `Failed to save settings: ${error}`,
+        severity: 'error',
+      });
+    }
   };
 
   const handleAddAdvertiser = () => {
     if (newAdvertiser.trim()) {
-      setAdvertisers([...advertisers, newAdvertiser.trim()]);
+      const updatedSettings = {
+        ...settings,
+        advertisers: [...settings.advertisers, newAdvertiser.trim()],
+      };
+      setSettings(updatedSettings);
       setNewAdvertiser('');
       setIsAddAdvertiserOpen(false);
+      handleSaveSettings();
     }
   };
 
   const handleDeleteAdvertiser = (advertiser: string) => {
-    setAdvertisers(advertisers.filter(a => a !== advertiser));
+    const updatedSettings = {
+      ...settings,
+      advertisers: settings.advertisers.filter(a => a !== advertiser),
+    };
+    setSettings(updatedSettings);
+    handleSaveSettings();
   };
 
   const textFieldSx = {
@@ -78,8 +133,8 @@ const Settings = () => {
             <TextField
               label="API Key"
               type="password"
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
+              value={settings.mailchimp_api_key}
+              onChange={(e) => setSettings({ ...settings, mailchimp_api_key: e.target.value })}
               fullWidth
               size="small"
               required
@@ -89,8 +144,8 @@ const Settings = () => {
           <div>
             <TextField
               label="Audience ID"
-              value={audienceId}
-              onChange={(e) => setAudienceId(e.target.value)}
+              value={settings.mailchimp_audience_id}
+              onChange={(e) => setSettings({ ...settings, mailchimp_audience_id: e.target.value })}
               fullWidth
               size="small"
               required
@@ -121,7 +176,7 @@ const Settings = () => {
           </Button>
         </div>
         <List className="border rounded-lg">
-          {advertisers.map((advertiser) => (
+          {settings.advertisers.map((advertiser) => (
             <ListItem
               key={advertiser}
               divider
@@ -176,6 +231,21 @@ const Settings = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };
