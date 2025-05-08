@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   Typography,
@@ -42,11 +42,35 @@ interface FormData {
   };
 }
 
+interface Settings {
+  mailchimp_api_key: string;
+  mailchimp_audience_id: string;
+  advertisers: string[];
+}
+
 const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care', 'Breaking News'];
 
-const SAMPLE_ADVERTISERS = ['JCEDC', 'Choose New Jersey', 'Morgan Stanley', 'Englewood Health'];
-
 const RunReport = () => {
+  const [advertisers, setAdvertisers] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Load settings including advertisers on component mount
+  useEffect(() => {
+    loadSettings();
+  }, []);
+
+  const loadSettings = async () => {
+    try {
+      setLoading(true);
+      const settings = await invoke<Settings>('load_settings');
+      setAdvertisers(settings.advertisers);
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const theme = createTheme({
     components: {
       MuiCssBaseline: {
@@ -318,7 +342,7 @@ const RunReport = () => {
                 render={({ field }) => (
                   <Autocomplete
                     {...field}
-                    options={SAMPLE_ADVERTISERS}
+                    options={advertisers}
                     renderInput={(params) => (
                       <TextField {...params} label="Advertiser" size="small" />
                     )}
