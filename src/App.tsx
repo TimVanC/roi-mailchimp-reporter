@@ -8,13 +8,15 @@ import RunReport from './pages/RunReport';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 
+// Main theme configuration for the entire app
+// Using ROI brand colors - dark blue for primary, light gray for background
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#001223',
+      main: '#001223', // ROI dark blue
     },
     background: {
-      default: '#e5e9f2',
+      default: '#e5e9f2', // Light gray for a clean, professional look
     },
   },
   typography: {
@@ -29,6 +31,8 @@ const theme = createTheme({
   },
 });
 
+// Navigation component with highlighting for the active route
+// This gives users clear visual feedback about which page they're on
 const Navigation = () => {
   const location = useLocation();
   
@@ -38,8 +42,8 @@ const Navigation = () => {
         to="/" 
         className={`px-4 py-1.5 rounded-md text-base font-semibold transition-colors ${
           location.pathname === '/' 
-            ? 'bg-[#e5e9f2] text-gray-900' 
-            : 'text-[#e5e9f2] hover:text-white'
+            ? 'bg-[#e5e9f2] text-gray-900' // Active state
+            : 'text-[#e5e9f2] hover:text-white' // Inactive state with hover effect
         }`}
       >
         Run Report
@@ -68,13 +72,16 @@ const Navigation = () => {
   );
 };
 
+// Main App component that sets up the router and overall layout
+// Using a standard header-content layout with container constraints for responsive design
 const App = () => {
   return (
     <ThemeProvider theme={theme}>
+      {/* Date picker provider needed for the date range selectors */}
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Router>
           <div className="min-h-screen bg-background flex flex-col">
-            {/* Header */}
+            {/* Header with ROI logo and main navigation */}
             <header className="bg-header shadow-lg">
               <div className="container mx-auto px-6 py-8 flex justify-between items-center">
                 <div className="flex items-center space-x-16">
@@ -88,7 +95,7 @@ const App = () => {
               </div>
             </header>
 
-            {/* Main Content */}
+            {/* Main content area with route-based content rendering */}
             <main className="flex-1 container mx-auto px-6 py-8">
               <div className="bg-white rounded-lg shadow-sm p-8 max-w-3xl mx-auto">
                 <Routes>

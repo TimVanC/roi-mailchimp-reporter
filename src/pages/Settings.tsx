@@ -28,6 +28,8 @@ import {
 } from '@mui/icons-material';
 import { invoke } from '@tauri-apps/api/core';
 
+// Interface for our Settings data structure
+// These fields need to match the Rust backend's Settings struct
 interface Settings {
   mailchimp_api_key: string;
   mailchimp_audience_id: string;
@@ -35,11 +37,14 @@ interface Settings {
 }
 
 const Settings = () => {
+  // Main settings state with default empty values
   const [settings, setSettings] = useState<Settings>({
     mailchimp_api_key: '',
     mailchimp_audience_id: '',
     advertisers: [],
   });
+  
+  // UI state management
   const [isAddAdvertiserOpen, setIsAddAdvertiserOpen] = useState(false);
   const [newAdvertiser, setNewAdvertiser] = useState('');
   const [settingsPath, setSettingsPath] = useState<string>('');
@@ -52,16 +57,20 @@ const Settings = () => {
     message: '',
     severity: 'success',
   });
+  
+  // Advertisers list management
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const itemsPerPage = 10;
+  const itemsPerPage = 10; // Show 10 advertisers per page
 
+  // Load settings when component mounts
   useEffect(() => {
     loadSettings();
     getSettingsPath();
   }, []);
 
+  // Get the path where settings are stored (useful for debugging)
   const getSettingsPath = async () => {
     try {
       const path = await invoke<string>('get_settings_path');
@@ -72,6 +81,7 @@ const Settings = () => {
     }
   };
 
+  // Load settings from Tauri backend
   const loadSettings = async () => {
     try {
       const loadedSettings = await invoke<Settings>('load_settings');
@@ -87,6 +97,7 @@ const Settings = () => {
     }
   };
 
+  // Save settings to Tauri backend
   const handleSaveSettings = async () => {
     try {
       console.log('Saving settings:', settings);
@@ -109,6 +120,9 @@ const Settings = () => {
     }
   };
 
+  // Add a new advertiser to the list
+  // We use a direct approach to ensure the state is properly updated
+  // before saving to prevent race conditions
   const handleAddAdvertiser = async () => {
     if (newAdvertiser.trim()) {
       console.log('Adding advertiser:', newAdvertiser.trim());
@@ -155,6 +169,8 @@ const Settings = () => {
     }
   };
 
+  // Delete an advertiser from the list
+  // Similar approach to adding - we update and save directly
   const handleDeleteAdvertiser = async (advertiser: string) => {
     console.log('Deleting advertiser:', advertiser);
     
@@ -195,7 +211,7 @@ const Settings = () => {
     }
   };
 
-  // Get filtered and sorted advertisers
+  // Filter and sort advertisers based on search term and sort direction
   const filteredAdvertisers = settings.advertisers
     .filter(advertiser => 
       advertiser.toLowerCase().includes(searchTerm.toLowerCase())
@@ -208,25 +224,26 @@ const Settings = () => {
       }
     });
     
-  // Get paginated advertisers
+  // Get paginated subset of advertisers for current page
   const paginatedAdvertisers = filteredAdvertisers.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
   
-  // Calculate total pages
+  // Calculate total pages for pagination
   const totalPages = Math.max(1, Math.ceil(filteredAdvertisers.length / itemsPerPage));
   
-  // Handle page change
+  // Handle pagination page change
   const handlePageChange = (event: React.ChangeEvent<unknown>, page: number) => {
     setCurrentPage(page);
   };
   
-  // Toggle sort direction
+  // Toggle sort direction between ascending and descending
   const toggleSortDirection = () => {
     setSortDirection(prev => prev === 'asc' ? 'desc' : 'asc');
   };
 
+  // Custom styles for TextField components
   const textFieldSx = {
     '& .MuiOutlinedInput-root': {
       '&.Mui-focused': {
@@ -380,7 +397,7 @@ const Settings = () => {
           </div>
         </div>
         
-        {/* Advertisers List */}
+        {/* Advertisers List with Pagination */}
         <Paper elevation={0} variant="outlined" className="mb-3">
           {paginatedAdvertisers.length > 0 ? (
             <List disablePadding>
@@ -412,7 +429,7 @@ const Settings = () => {
           )}
         </Paper>
         
-        {/* Pagination */}
+        {/* Pagination Controls - only shown when needed */}
         {totalPages > 1 && (
           <div className="flex justify-center mt-4">
             <Pagination 
