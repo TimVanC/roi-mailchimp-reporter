@@ -384,7 +384,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
 }
 
 #[tauri::command]
-fn open_report_in_excel(_window: tauri::Window, report_data: serde_json::Value) -> Result<String, String> {
+fn open_report_in_excel(_window: tauri::Window, reportData: serde_json::Value) -> Result<String, String> {
     // Create a timestamp for the file name
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
     
@@ -400,7 +400,7 @@ fn open_report_in_excel(_window: tauri::Window, report_data: serde_json::Value) 
     csv.push_str("Date,Unique Opens,Total Opens,Total Recipients,Total Clicks,Ctr\n");
     
     // The report data is now in the "report_data" field
-    if let Some(report_entries) = report_data.get("report_data").and_then(|d| d.as_array()) {
+    if let Some(report_entries) = reportData.get("report_data").and_then(|d| d.as_array()) {
         // Report entries are already sorted by date in the backend
         for entry in report_entries {
             let date = entry.get("send_date").and_then(|d| d.as_str()).unwrap_or("N/A");
@@ -512,30 +512,23 @@ fn download_report(_app: tauri::AppHandle, report: serde_json::Value) -> Result<
 }
 
 #[tauri::command]
-fn download_csv(_app: tauri::AppHandle, report_data: serde_json::Value) -> Result<String, String> {
+fn download_csv(_app: tauri::AppHandle, reportData: serde_json::Value) -> Result<String, String> {
     // Create a timestamp for the file name
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
-    
-    // Get the report name if available
-    let report_name = if let Some(name) = report_data.get("name").and_then(|v| v.as_str()) {
-        name.to_string()
-    } else if let Some(advertiser) = report_data.get("advertiser").and_then(|v| v.as_str()) {
-        format!("{}_report", advertiser)
-    } else {
-        "mailchimp_report".to_string()
-    };
     
     // Get the downloads directory
     let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
     let download_dir = home_dir.join("Downloads");
     
-    // Create CSV content - using the same code as open_report_in_excel
+    // Create a file name
+    let file_name = format!("campaign_report_{}.csv", timestamp);
+    let file_path = download_dir.join(&file_name);
+    
+    // Create CSV content with headers
     let mut csv = String::new();
     csv.push_str("Date,Unique Opens,Total Opens,Total Recipients,Total Clicks,Ctr\n");
     
-    // The report data is now in the "report_data" field
-    if let Some(report_entries) = report_data.get("report_data").and_then(|d| d.as_array()) {
-        // Report entries are already sorted by date in the backend
+    if let Some(report_entries) = reportData.get("report_data").and_then(|d| d.as_array()) {
         for entry in report_entries {
             let date = entry.get("send_date").and_then(|d| d.as_str()).unwrap_or("N/A");
             let unique_opens = entry.get("unique_opens").and_then(|v| v.as_u64()).unwrap_or(0);
@@ -556,95 +549,17 @@ fn download_csv(_app: tauri::AppHandle, report_data: serde_json::Value) -> Resul
             ));
         }
     } else {
-        // If no report data found, use the original data format if available
-        // Use the same CSV generation code as in open_report_in_excel function
-        if let Some(campaigns) = report_data.get("campaigns").and_then(|c| c.as_array()) {
-            let mut campaign_data = Vec::new();
-            
-            for campaign in campaigns {
-                // Extract the send date
-                let send_date = campaign.get("send_time")
-                    .and_then(|v| v.as_str())
-                    .map(|date_str| {
-                        // Format date as YYYY-MM-DD
-                        if date_str.len() >= 10 {
-                            date_str[0..10].to_string()
-                        } else {
-                            "N/A".to_string()
-                        }
-                    })
-                    .unwrap_or_else(|| "N/A".to_string());
-                
-                // Extract report summary data
-                let report_summary = campaign.get("report_summary").unwrap_or(&serde_json::Value::Null);
-                
-                // Extract individual metrics
-                let unique_opens = report_summary.get("unique_opens")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                
-                let total_opens = report_summary.get("opens")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                
-                let total_recipients = campaign.get("emails_sent")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                
-                // Extract click data
-                let total_clicks = report_summary.get("clicks")
-                    .and_then(|v| v.as_u64())
-                    .unwrap_or(0);
-                
-                // Calculate CTR
-                let ctr = if unique_opens > 0 {
-                    (total_clicks as f64 / unique_opens as f64) * 100.0
-                } else {
-                    0.0
-                };
-                
-                campaign_data.push((
-                    send_date,
-                    unique_opens,
-                    total_opens,
-                    total_recipients,
-                    total_clicks,
-                    ctr
-                ));
-            }
-            
-            // Sort by date
-            campaign_data.sort_by(|a, b| a.0.cmp(&b.0));
-            
-            // Add campaign data to CSV
-            for (date, unique_opens, total_opens, total_recipients, total_clicks, ctr) in campaign_data {
-                csv.push_str(&format!(
-                    "{},{},{},{},{},{:.6}\n",
-                    date, 
-                    unique_opens, 
-                    total_opens, 
-                    total_recipients, 
-                    total_clicks,
-                    ctr
-                ));
-            }
-        } else {
-            // No data found
-            csv.push_str("No campaign data found\n");
-        }
+        csv.push_str("No campaign data found\n");
     }
     
-    // Create a file name
-    let file_name = format!("{}_{}.csv", report_name, timestamp);
-    let file_path = download_dir.join(file_name);
-    
-    // Write to file
+    // Write the CSV content to the file
     std::fs::write(&file_path, csv.as_bytes())
-        .map_err(|e| format!("Failed to write CSV file: {}", e))?;
+        .map_err(|e| format!("Failed to write CSV: {}", e))?;
     
-    // Return the file path for displaying to the user
-    let path_str = file_path.to_string_lossy().to_string();
-    Ok(path_str)
+    // Return the file path as a string
+    file_path.to_str()
+        .ok_or_else(|| "Failed to get file path".to_string())
+        .map(|s| s.to_string())
 }
 
 #[tauri::command]

@@ -106,7 +106,7 @@ const Reports = () => {
   const handleOpenInExcel = async (report: Report) => {
     try {
       // Get the CSV file path from backend
-      const filePath = await invoke<string>('open_report_in_excel', { report_data: report.data });
+      const filePath = await invoke<string>('open_report_in_excel', { reportData: report.data });
       // Instead of opening with shell, use the opener plugin for better cross-platform support
       await invoke('opener_open', { path: filePath });
       setSnackbar({ open: true, message: 'CSV file generated. It should open in Excel.', severity: 'success' });
@@ -124,7 +124,7 @@ const Reports = () => {
   const handleDownload = async (report: Report) => {
     try {
       // Use our CSV download function to get a CSV file just like the Excel export
-      const filePath = await invoke<string>('download_csv', { report_data: report.data });
+      const filePath = await invoke<string>('download_csv', { reportData: report.data });
       setSnackbar({ 
         open: true, 
         message: `CSV report downloaded to: ${filePath}`, 
