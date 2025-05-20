@@ -249,6 +249,13 @@ fn save_report(app: tauri::AppHandle, report: SavedReport) -> Result<(), String>
 
 #[tauri::command]
 async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Result<ReportResponse, String> {
+    // Emit initial progress event - 0%
+    app.emit_all("report-progress", serde_json::json!({
+        "stage": "Initializing",
+        "progress": 0,
+        "message": "Starting report generation..."
+    })).map_err(|e| format!("Failed to emit event: {}", e))?;
+
     // Load settings
     let settings = load_settings(app.clone())?;
     
@@ -259,6 +266,13 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
             data: None,
         });
     }
+
+    // Emit progress - 10%
+    app.emit_all("report-progress", serde_json::json!({
+        "stage": "FetchingCampaigns",
+        "progress": 10,
+        "message": "Connecting to Mailchimp API..."
+    })).map_err(|e| format!("Failed to emit event: {}", e))?;
 
     // Create Mailchimp API client
     let client = reqwest::Client::new();
@@ -277,6 +291,13 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         "{}/campaigns?since_send_time={}&before_send_time={}&count=1000", 
         base_url, start_date_iso, end_date_iso
     );
+    
+    // Emit progress - 20%
+    app.emit_all("report-progress", serde_json::json!({
+        "stage": "FetchingCampaigns",
+        "progress": 20,
+        "message": "Fetching campaign data from Mailchimp..."
+    })).map_err(|e| format!("Failed to emit event: {}", e))?;
     
     let campaigns_response = client
         .get(&campaigns_url)
@@ -310,6 +331,13 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         }
     };
     
+    // Emit progress - 30%
+    app.emit_all("report-progress", serde_json::json!({
+        "stage": "FilteringCampaigns",
+        "progress": 30,
+        "message": format!("Found {} campaigns. Filtering by newsletter type...", campaigns.len())
+    })).map_err(|e| format!("Failed to emit event: {}", e))?;
+    
     // Filter campaigns by newsletter type
     let mut filtered_campaigns = Vec::new();
     let newsletter_type_lower = request.newsletter_type.to_lowercase();
@@ -333,10 +361,27 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         }
     }
     
+    // Emit progress - 40%
+    app.emit_all("report-progress", serde_json::json!({
+        "stage": "ProcessingCampaigns",
+        "progress": 40,
+        "message": format!("Found {} matching campaigns. Processing details...", filtered_campaigns.len())
+    })).map_err(|e| format!("Failed to emit event: {}", e))?;
+    
     // Process each filtered campaign to analyze clicks for the specific ad URLs
     let mut report_data = Vec::new();
     
-    for campaign in &filtered_campaigns {
+    // Calculate progress increment per campaign
+    let campaign_progress_increment = if filtered_campaigns.is_empty() {
+        0.0
+    } else {
+        40.0 / (filtered_campaigns.len() as f64)
+    };
+    
+    for (index, campaign) in filtered_campaigns.iter().enumerate() {
+        // Calculate current progress (40-80% is for campaign processing)
+        let current_progress = 40 + ((index as f64) * campaign_progress_increment) as u8;
+        
         // Extract campaign ID and metrics
         let campaign_id = match campaign.get("id").and_then(|id| id.as_str()) {
             Some(id) => id,
@@ -348,6 +393,13 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
             Some(time) => time,
             None => continue, // Skip if no send time
         };
+        
+        // Emit progress update for individual campaign
+        app.emit_all("report-progress", serde_json::json!({
+            "stage": "ProcessingCampaigns",
+            "progress": current_progress,
+            "message": format!("Processing campaign {} of {} ({})", index + 1, filtered_campaigns.len(), send_time)
+        })).map_err(|e| format!("Failed to emit event: {}", e))?;
         
         // Format date as in Python script
         let formatted_date = match chrono::DateTime::parse_from_rfc3339(send_time) {
@@ -415,6 +467,13 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         }
     }
     
+    // Emit progress - 80%
+    app.emit_all("report-progress", serde_json::json!({
+        "stage": "FinalizingReport",
+        "progress": 80,
+        "message": "Processing complete. Organizing report data..."
+    })).map_err(|e| format!("Failed to emit event: {}", e))?;
+    
     // Sort report data by date
     report_data.sort_by(|a, b| {
         let date_a = a.get("send_date").and_then(|d| d.as_str()).unwrap_or("");
@@ -428,6 +487,13 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         "report_data": report_data
     });
     
+    // Emit progress - 90%
+    app.emit_all("report-progress", serde_json::json!({
+        "stage": "SavingReport",
+        "progress": 90,
+        "message": "Finalizing and saving report..."
+    })).map_err(|e| format!("Failed to emit event: {}", e))?;
+    
     // Save the report
     let report = SavedReport {
         id: format!("report-{}", chrono::Utc::now().timestamp_millis()),
@@ -439,7 +505,14 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         data: final_report.clone(),
     };
 
-    save_report(app, report)?;
+    save_report(app.clone(), report)?;
+
+    // Emit progress - 100%
+    app.emit_all("report-progress", serde_json::json!({
+        "stage": "Complete",
+        "progress": 100,
+        "message": "Report generation complete!"
+    })).map_err(|e| format!("Failed to emit event: {}", e))?;
 
     Ok(ReportResponse {
         success: true,

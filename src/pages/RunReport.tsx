@@ -18,6 +18,8 @@ import {
   Snackbar,
   Alert,
   CircularProgress,
+  LinearProgress,
+  Box,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
@@ -25,6 +27,7 @@ import dayjs from 'dayjs';
 import type { NewsletterType } from '@/types';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { invoke } from '@tauri-apps/api/core';
+import { UnlistenFn, listen } from '@tauri-apps/api/event';
 
 // Form data interface for React Hook Form
 // This matches the structure expected by our Rust backend
@@ -57,12 +60,30 @@ interface Settings {
 // These match the options in the Mailchimp data
 const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care', 'Breaking News'];
 
+// Add a type for progress events
+interface ProgressEvent {
+  stage: string;
+  progress: number;
+  message: string;
+}
+
 const RunReport = () => {
   // State for advertisers loaded from settings
   const [advertisers, setAdvertisers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   // Add loading state for report generation
   const [generating, setGenerating] = useState(false);
+  
+  // Add state for progress reporting
+  const [progress, setProgress] = useState<{
+    stage: string;
+    percentage: number;
+    message: string;
+  }>({
+    stage: '',
+    percentage: 0,
+    message: '',
+  });
 
   // Load settings including advertisers on component mount
   // Also set up a polling mechanism to keep settings in sync
@@ -77,9 +98,26 @@ const RunReport = () => {
       loadSettings();
     }, 3000); // Reload every 3 seconds
     
-    // Clean up interval on unmount to prevent memory leaks
+    // Set up event listener for progress updates
+    let unlisten: UnlistenFn | undefined;
+    
+    const setupProgressListener = async () => {
+      unlisten = await listen<ProgressEvent>('report-progress', (event) => {
+        console.log('Progress update:', event);
+        setProgress({
+          stage: event.payload.stage,
+          percentage: event.payload.progress,
+          message: event.payload.message,
+        });
+      });
+    };
+    
+    setupProgressListener();
+    
+    // Clean up interval and event listeners on unmount to prevent memory leaks
     return () => {
       clearInterval(intervalId);
+      if (unlisten) unlisten();
     };
   }, []);
 
@@ -275,6 +313,13 @@ const RunReport = () => {
   // Form submission handler
   // Validates and sends the data to the Rust backend
   const onSubmit = async (data: FormData) => {
+    // Reset progress state
+    setProgress({
+      stage: '',
+      percentage: 0,
+      message: '',
+    });
+    
     // Validate at least one metric is selected
     const hasMetric = Object.values(data.metrics).some(value => value);
     if (!hasMetric) {
@@ -667,6 +712,47 @@ const RunReport = () => {
             </div>
           </div>
 
+          {/* Progress indicator - only shown when generating a report */}
+          {generating && (
+            <Box sx={{ mt: 4, mb: 2 }}>
+              <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
+                  {progress.message}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {progress.percentage}%
+                </Typography>
+              </Box>
+              <LinearProgress 
+                variant="determinate" 
+                value={progress.percentage} 
+                sx={{ 
+                  height: 8, 
+                  borderRadius: 4,
+                  backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                  '& .MuiLinearProgress-bar': {
+                    backgroundColor: '#159581',
+                    borderRadius: 4,
+                  }
+                }}
+              />
+              <Typography 
+                variant="caption" 
+                color="text.secondary" 
+                sx={{ 
+                  display: 'block', 
+                  mt: 0.5, 
+                  textAlign: 'center', 
+                  fontStyle: 'italic' 
+                }}
+              >
+                {progress.stage === 'ProcessingCampaigns' 
+                  ? 'This may take a few minutes depending on the number of campaigns' 
+                  : ''}
+              </Typography>
+            </Box>
+          )}
+          
           {/* Submit Button Section with loading state */}
           <div className="mt-6 flex justify-center">
             <Button
