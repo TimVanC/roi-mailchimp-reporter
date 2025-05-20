@@ -450,14 +450,51 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
 
 #[tauri::command]
 fn open_report_in_excel(_window: tauri::Window, reportData: serde_json::Value) -> Result<String, String> {
-    // Create a timestamp for the file name
+    // Extract report metadata for filename
+    let advertiser = reportData.get("advertiser")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown-advertiser");
+    
+    let newsletter_type = reportData.get("report_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown-type");
+    
+    // Extract date range for filename
+    let date_range = if let Some(range) = reportData.get("date_range") {
+        let start = range.get("start_date")
+            .and_then(|d| d.as_str())
+            .unwrap_or("");
+        
+        let end = range.get("end_date")
+            .and_then(|d| d.as_str())
+            .unwrap_or("");
+            
+        if !start.is_empty() && !end.is_empty() {
+            format!("{}_{}", start, end)
+        } else {
+            "unknown-dates".to_string()
+        }
+    } else {
+        "unknown-dates".to_string()
+    };
+    
+    // Create a timestamp for uniqueness if needed
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+    
+    // Create a clean advertiser name (remove special chars)
+    let clean_advertiser = advertiser.replace(&[' ', ',', '.', '/', '\\', ':', ';', '\"', '\'', '!', '?', '*', '(', ')', '[', ']', '{', '}', '<', '>'][..], "_");
     
     // Get the system temp directory
     let temp_dir = std::env::temp_dir();
     
-    // Create a file with .csv extension
-    let file_name = format!("campaign_report_{}.csv", timestamp);
+    // Format the filename: Advertiser_NewsletterType_DateRange.csv
+    let file_name = format!("{}_{}_{}_{}.csv", 
+        clean_advertiser,
+        newsletter_type,
+        date_range,
+        timestamp
+    );
+    
     let file_path = temp_dir.join(&file_name);
     
     // Create CSV content with headers
@@ -603,9 +640,6 @@ fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<S
 
 #[tauri::command]
 fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<String, String> {
-    // Create a timestamp for the file name
-    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
-    
     // Load settings to get the custom download directory
     let settings = load_settings(app.clone())?;
     
@@ -625,8 +659,48 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
             .map_err(|e| format!("Failed to create download directory: {}", e))?;
     }
     
-    // Create a file name
-    let file_name = format!("campaign_report_{}.csv", timestamp);
+    // Extract report metadata for filename
+    let advertiser = reportData.get("advertiser")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown-advertiser");
+    
+    let newsletter_type = reportData.get("report_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown-type");
+    
+    // Extract date range for filename
+    let date_range = if let Some(range) = reportData.get("date_range") {
+        let start = range.get("start_date")
+            .and_then(|d| d.as_str())
+            .unwrap_or("");
+        
+        let end = range.get("end_date")
+            .and_then(|d| d.as_str())
+            .unwrap_or("");
+            
+        if !start.is_empty() && !end.is_empty() {
+            format!("{}_{}", start, end)
+        } else {
+            "unknown-dates".to_string()
+        }
+    } else {
+        "unknown-dates".to_string()
+    };
+    
+    // Create a timestamp for uniqueness if needed
+    let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
+    
+    // Create a clean advertiser name (remove special chars)
+    let clean_advertiser = advertiser.replace(&[' ', ',', '.', '/', '\\', ':', ';', '\"', '\'', '!', '?', '*', '(', ')', '[', ']', '{', '}', '<', '>'][..], "_");
+    
+    // Format the filename: Advertiser_NewsletterType_DateRange.csv
+    let file_name = format!("{}_{}_{}_{}.csv", 
+        clean_advertiser,
+        newsletter_type,
+        date_range,
+        timestamp
+    );
+    
     let file_path = download_dir.join(&file_name);
     
     // Debug log the file path
