@@ -554,11 +554,18 @@ fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<S
     // Load settings to get the custom download directory
     let settings = load_settings(app.clone())?;
     
+    // Debug log the download directory
+    println!("Using download directory from settings: '{}'", settings.download_directory);
+    
     // Use the download directory from settings
     let download_dir = std::path::Path::new(&settings.download_directory);
     
+    // Debug log the download directory exists check
+    println!("Does download directory exist? {}", download_dir.exists());
+    
     // Create the directory if it doesn't exist
     if !download_dir.exists() {
+        println!("Download directory doesn't exist, creating it");
         std::fs::create_dir_all(download_dir)
             .map_err(|e| format!("Failed to create download directory: {}", e))?;
     }
@@ -571,16 +578,26 @@ fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<S
     let file_name = format!("{}_{}.json", report_name, timestamp);
     let file_path = download_dir.join(file_name);
     
+    // Debug log the file path
+    println!("Writing JSON report to: '{}'", file_path.display());
+    
     // Serialize report to JSON
     let report_json = serde_json::to_string_pretty(&report)
         .map_err(|e| format!("Failed to serialize report: {}", e))?;
 
     // Write to file
-    std::fs::write(&file_path, report_json.as_bytes())
-        .map_err(|e| format!("Failed to write file: {}", e))?;
+    match std::fs::write(&file_path, report_json.as_bytes()) {
+        Ok(_) => println!("Successfully wrote JSON file to {}", file_path.display()),
+        Err(e) => {
+            let error_msg = format!("Failed to write file: {}", e);
+            println!("{}", error_msg);
+            return Err(error_msg);
+        }
+    };
 
     // Return the file path for displaying to the user
     let path_str = file_path.to_string_lossy().to_string();
+    println!("Returning file path: '{}'", path_str);
     Ok(path_str)
 }
 
@@ -592,11 +609,18 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     // Load settings to get the custom download directory
     let settings = load_settings(app.clone())?;
     
+    // Debug log the download directory
+    println!("Using download directory from settings: '{}'", settings.download_directory);
+    
     // Use the download directory from settings
     let download_dir = std::path::Path::new(&settings.download_directory);
     
+    // Debug log the download directory exists check
+    println!("Does download directory exist? {}", download_dir.exists());
+    
     // Create the directory if it doesn't exist
     if !download_dir.exists() {
+        println!("Download directory doesn't exist, creating it");
         std::fs::create_dir_all(download_dir)
             .map_err(|e| format!("Failed to create download directory: {}", e))?;
     }
@@ -604,6 +628,9 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     // Create a file name
     let file_name = format!("campaign_report_{}.csv", timestamp);
     let file_path = download_dir.join(&file_name);
+    
+    // Debug log the file path
+    println!("Writing CSV to: '{}'", file_path.display());
     
     // Create CSV content with headers
     let mut csv = String::new();
@@ -634,11 +661,19 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     }
     
     // Write the CSV content to the file
-    std::fs::write(&file_path, csv.as_bytes())
-        .map_err(|e| format!("Failed to write CSV: {}", e))?;
+    match std::fs::write(&file_path, csv.as_bytes()) {
+        Ok(_) => println!("Successfully wrote CSV file to {}", file_path.display()),
+        Err(e) => {
+            let error_msg = format!("Failed to write CSV: {}", e);
+            println!("{}", error_msg);
+            return Err(error_msg);
+        }
+    };
     
     // Return the file path as a string
-    Ok(file_path.to_string_lossy().to_string())
+    let path_str = file_path.to_string_lossy().to_string();
+    println!("Returning file path: '{}'", path_str);
+    Ok(path_str)
 }
 
 #[tauri::command]
