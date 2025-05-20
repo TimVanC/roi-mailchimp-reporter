@@ -105,8 +105,8 @@ const Reports = () => {
   // Sends data to the Rust backend to generate a CSV and open it
   const handleOpenInExcel = async (report: Report) => {
     try {
-      // Get the CSV file path from backend
-      const filePath = await invoke<string>('open_report_in_excel', { reportData: report.data });
+      // Get the CSV file path from backend - pass the entire report object
+      const filePath = await invoke<string>('open_report_in_excel', { reportData: report });
       // Instead of opening with shell, use the opener plugin for better cross-platform support
       await invoke('opener_open', { path: filePath });
       setSnackbar({ open: true, message: 'CSV file generated. It should open in Excel.', severity: 'success' });
@@ -123,8 +123,8 @@ const Reports = () => {
   // Similar to Excel export but saves to Downloads folder
   const handleDownload = async (report: Report) => {
     try {
-      // Use our CSV download function to get a CSV file just like the Excel export
-      const filePath = await invoke<string>('download_csv', { reportData: report.data });
+      // Use our CSV download function - pass the entire report object
+      const filePath = await invoke<string>('download_csv', { reportData: report });
       setSnackbar({ 
         open: true, 
         message: `CSV report downloaded to: ${filePath}`, 

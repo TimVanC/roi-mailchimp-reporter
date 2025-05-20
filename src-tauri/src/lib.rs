@@ -450,6 +450,10 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
 
 #[tauri::command]
 fn open_report_in_excel(_window: tauri::Window, reportData: serde_json::Value) -> Result<String, String> {
+    // Extract report data for CSV content
+    let report_data = reportData.get("data")
+        .ok_or_else(|| "Invalid report format: missing data field".to_string())?;
+    
     // Extract report metadata for filename
     let advertiser = reportData.get("advertiser")
         .and_then(|v| v.as_str())
@@ -502,7 +506,7 @@ fn open_report_in_excel(_window: tauri::Window, reportData: serde_json::Value) -
     csv.push_str("Date,Unique Opens,Total Opens,Total Recipients,Total Clicks,Ctr\n");
     
     // The report data is now in the "report_data" field
-    if let Some(report_entries) = reportData.get("report_data").and_then(|d| d.as_array()) {
+    if let Some(report_entries) = report_data.get("report_data").and_then(|d| d.as_array()) {
         // Report entries are already sorted by date in the backend
         for entry in report_entries {
             let date = entry.get("send_date").and_then(|d| d.as_str()).unwrap_or("N/A");
@@ -640,6 +644,10 @@ fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<S
 
 #[tauri::command]
 fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<String, String> {
+    // Extract report data for CSV content
+    let report_data = reportData.get("data")
+        .ok_or_else(|| "Invalid report format: missing data field".to_string())?;
+    
     // Load settings to get the custom download directory
     let settings = load_settings(app.clone())?;
     
@@ -710,7 +718,7 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     let mut csv = String::new();
     csv.push_str("Date,Unique Opens,Total Opens,Total Recipients,Total Clicks,Ctr\n");
     
-    if let Some(report_entries) = reportData.get("report_data").and_then(|d| d.as_array()) {
+    if let Some(report_entries) = report_data.get("report_data").and_then(|d| d.as_array()) {
         for entry in report_entries {
             let date = entry.get("send_date").and_then(|d| d.as_str()).unwrap_or("N/A");
             let unique_opens = entry.get("unique_opens").and_then(|v| v.as_u64()).unwrap_or(0);
