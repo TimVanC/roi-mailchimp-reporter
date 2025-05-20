@@ -60,11 +60,20 @@ interface Settings {
 // These match the options in the Mailchimp data
 const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care', 'Breaking News'];
 
-// Add a type for progress events
-interface ProgressEvent {
+// Add a type for progress events from the backend
+interface ProgressUpdate {
   stage: string;
   progress: number;
   message: string;
+  timeRemaining: number | null;
+}
+
+// Add type for the response from generate_report
+interface GenerateReportResponse {
+  success: boolean;
+  message: string;
+  data: any;
+  progress_updates: ProgressUpdate[];
 }
 
 const RunReport = () => {
@@ -79,10 +88,12 @@ const RunReport = () => {
     stage: string;
     percentage: number;
     message: string;
+    timeRemaining: number | null;
   }>({
     stage: '',
     percentage: 0,
     message: '',
+    timeRemaining: null,
   });
 
   // Load settings including advertisers on component mount
@@ -98,28 +109,24 @@ const RunReport = () => {
       loadSettings();
     }, 3000); // Reload every 3 seconds
     
-    // Set up event listener for progress updates
-    let unlisten: UnlistenFn | undefined;
-    
-    const setupProgressListener = async () => {
-      unlisten = await listen<ProgressEvent>('report-progress', (event) => {
-        console.log('Progress update:', event);
-        setProgress({
-          stage: event.payload.stage,
-          percentage: event.payload.progress,
-          message: event.payload.message,
-        });
-      });
-    };
-    
-    setupProgressListener();
-    
-    // Clean up interval and event listeners on unmount to prevent memory leaks
+    // Clean up interval on unmount to prevent memory leaks
     return () => {
       clearInterval(intervalId);
-      if (unlisten) unlisten();
     };
   }, []);
+
+  // Function to format time remaining
+  const formatTimeRemaining = (seconds: number | null): string => {
+    if (seconds === null) return '';
+    
+    if (seconds < 60) {
+      return `${Math.round(seconds)} seconds remaining`;
+    } else {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = Math.round(seconds % 60);
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')} minutes remaining`;
+    }
+  };
 
   // Load settings from the Tauri backend
   // Only update advertisers state if the list has actually changed
@@ -310,14 +317,14 @@ const RunReport = () => {
     }
   };
 
-  // Form submission handler
-  // Validates and sends the data to the Rust backend
+  // Form submission handler - generate report
   const onSubmit = async (data: FormData) => {
     // Reset progress state
     setProgress({
       stage: '',
       percentage: 0,
       message: '',
+      timeRemaining: null,
     });
     
     // Validate at least one metric is selected
@@ -351,7 +358,7 @@ const RunReport = () => {
 
       // Generate the report by calling the Rust backend
       // Converting from camelCase (JS) to snake_case (Rust)
-      const response = await invoke<{ success: boolean; message: string; data: any }>('generate_report', {
+      const response = await invoke<GenerateReportResponse>('generate_report', {
         request: {
           newsletter_type: data.newsletterType,
           advertiser: data.advertiser,
@@ -369,6 +376,18 @@ const RunReport = () => {
           },
         }
       });
+
+      // Process progress updates from the response
+      if (response.progress_updates && response.progress_updates.length > 0) {
+        // Get the last progress update
+        const lastUpdate = response.progress_updates[response.progress_updates.length - 1];
+        setProgress({
+          stage: lastUpdate.stage,
+          percentage: lastUpdate.progress,
+          message: lastUpdate.message,
+          timeRemaining: lastUpdate.timeRemaining,
+        });
+      }
 
       // Show success or error message
       setSnackbar({
@@ -747,7 +766,7 @@ const RunReport = () => {
                 }}
               >
                 {progress.stage === 'ProcessingCampaigns' 
-                  ? 'This may take a few minutes depending on the number of campaigns' 
+                  ? (progress.timeRemaining ? formatTimeRemaining(progress.timeRemaining) : 'Calculating time remaining...') 
                   : ''}
               </Typography>
             </Box>
