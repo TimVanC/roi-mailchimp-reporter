@@ -4,6 +4,7 @@ use tauri::Manager;
 use reqwest;
 use std::io::Write;
 use std::fs::File;
+use tauri::Emitter;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Settings {
@@ -37,7 +38,7 @@ struct Metrics {
     ctr: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct ProgressUpdate {
     stage: String,
     progress: u8,
@@ -274,7 +275,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     progress_updates.push(initial_update.clone());
     
     // Emit the progress update to the frontend
-    if let Err(e) = app.emit_all("report-progress", initial_update) {
+    if let Err(e) = app.emit("report-progress", initial_update) {
         println!("Failed to emit progress update: {}", e);
     }
 
@@ -300,7 +301,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(connecting_update.clone());
-    if let Err(e) = app.emit_all("report-progress", connecting_update) {
+    if let Err(e) = app.emit("report-progress", connecting_update) {
         println!("Failed to emit progress update: {}", e);
     }
 
@@ -332,7 +333,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(fetching_update.clone());
-    if let Err(e) = app.emit_all("report-progress", fetching_update) {
+    if let Err(e) = app.emit("report-progress", fetching_update) {
         println!("Failed to emit progress update: {}", e);
     }
     
@@ -380,7 +381,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(filtering_update.clone());
-    if let Err(e) = app.emit_all("report-progress", filtering_update) {
+    if let Err(e) = app.emit("report-progress", filtering_update) {
         println!("Failed to emit progress update: {}", e);
     }
     
@@ -417,7 +418,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(processing_start_update.clone());
-    if let Err(e) = app.emit_all("report-progress", processing_start_update) {
+    if let Err(e) = app.emit("report-progress", processing_start_update) {
         println!("Failed to emit progress update: {}", e);
     }
     
@@ -478,7 +479,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         // For larger batches, don't emit every single update to reduce network traffic
         // For example, emit every 5th update, or when progress crosses a percentage threshold
         if index % 3 == 0 || index == filtered_campaigns.len() - 1 {
-            if let Err(e) = app.emit_all("report-progress", campaign_update) {
+            if let Err(e) = app.emit("report-progress", campaign_update) {
                 println!("Failed to emit progress update: {}", e);
             }
         }
@@ -559,7 +560,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(finalizing_update.clone());
-    if let Err(e) = app.emit_all("report-progress", finalizing_update) {
+    if let Err(e) = app.emit("report-progress", finalizing_update) {
         println!("Failed to emit progress update: {}", e);
     }
     
@@ -586,7 +587,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(saving_update.clone());
-    if let Err(e) = app.emit_all("report-progress", saving_update) {
+    if let Err(e) = app.emit("report-progress", saving_update) {
         println!("Failed to emit progress update: {}", e);
     }
     
@@ -613,7 +614,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(complete_update.clone());
-    if let Err(e) = app.emit_all("report-progress", complete_update) {
+    if let Err(e) = app.emit("report-progress", complete_update) {
         println!("Failed to emit progress update: {}", e);
     }
 

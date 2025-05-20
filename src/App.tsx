@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { ThemeProvider, createTheme } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import reactLogo from './assets/react.svg';
 
 // Import our page components
 import RunReport from './pages/RunReport';
@@ -83,12 +84,12 @@ const App = () => {
           <div className="min-h-screen bg-background flex flex-col">
             {/* Header with ROI logo and main navigation */}
             <header className="bg-header shadow-lg">
-              <div className="container mx-auto px-6 py-8 flex justify-between items-center">
+              <div className="container mx-auto px-6 py-4 flex justify-between items-center">
                 <div className="flex items-center space-x-16">
                   <img 
-                    src="/assets/ROI-Logo.svg" 
-                    alt="ROI Logo" 
-                    className="h-14"
+                    src={reactLogo}
+                    alt="Temporary Logo" 
+                    className="h-10 w-10"
                   />
                   <Navigation />
                 </div>
