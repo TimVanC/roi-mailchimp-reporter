@@ -10,6 +10,7 @@ struct Settings {
     mailchimp_api_key: String,
     mailchimp_audience_id: String,
     advertisers: Vec<String>,
+    download_directory: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -70,10 +71,23 @@ fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
 
     if !settings_path.exists() {
         println!("Settings file does not exist, returning default settings");
+        
+        // Get the default downloads directory
+        let default_download_dir = match dirs::download_dir() {
+            Some(path) => path.to_string_lossy().to_string(),
+            None => {
+                // Fallback to home directory + Downloads if download_dir can't be found
+                let home_dir = dirs::home_dir()
+                    .ok_or_else(|| "Could not determine home directory".to_string())?;
+                home_dir.join("Downloads").to_string_lossy().to_string()
+            }
+        };
+        
         return Ok(Settings {
             mailchimp_api_key: String::new(),
             mailchimp_audience_id: String::new(),
             advertisers: Vec::new(),
+            download_directory: default_download_dir,
         });
     }
 
@@ -82,8 +96,59 @@ fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     
     println!("Settings content: {}", settings_str);
     
-    let settings = serde_json::from_str(&settings_str)
-        .map_err(|e| format!("Failed to parse settings: {}", e))?;
+    // Try to parse settings, and handle potential missing fields
+    let mut settings: Settings = match serde_json::from_str(&settings_str) {
+        Ok(settings) => settings,
+        Err(e) => {
+            // If there's a parsing error, try to load as a dynamic JSON value
+            let json_value: serde_json::Value = serde_json::from_str(&settings_str)
+                .map_err(|e| format!("Failed to parse settings JSON: {}", e))?;
+            
+            // Get default download directory 
+            let default_download_dir = match dirs::download_dir() {
+                Some(path) => path.to_string_lossy().to_string(),
+                None => {
+                    let home_dir = dirs::home_dir()
+                        .ok_or_else(|| "Could not determine home directory".to_string())?;
+                    home_dir.join("Downloads").to_string_lossy().to_string()
+                }
+            };
+            
+            // Create settings struct with values from JSON or defaults
+            Settings {
+                mailchimp_api_key: json_value.get("mailchimp_api_key")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                mailchimp_audience_id: json_value.get("mailchimp_audience_id")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string(),
+                advertisers: json_value.get("advertisers")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|item| item.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_else(Vec::new),
+                download_directory: default_download_dir,
+            }
+        }
+    };
+    
+    // Ensure download_directory is set if it's empty
+    if settings.download_directory.is_empty() {
+        let default_download_dir = match dirs::download_dir() {
+            Some(path) => path.to_string_lossy().to_string(),
+            None => {
+                let home_dir = dirs::home_dir()
+                    .ok_or_else(|| "Could not determine home directory".to_string())?;
+                home_dir.join("Downloads").to_string_lossy().to_string()
+            }
+        };
+        settings.download_directory = default_download_dir;
+    }
     
     println!("Parsed settings: {:?}", settings);
     
@@ -482,13 +547,21 @@ fn opener_open(_app: tauri::AppHandle, path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn download_report(_app: tauri::AppHandle, report: serde_json::Value) -> Result<String, String> {
+fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<String, String> {
     // Create a timestamp for the file name
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
     
-    // Get the downloads directory
-    let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
-    let download_dir = home_dir.join("Downloads");
+    // Load settings to get the custom download directory
+    let settings = load_settings(app.clone())?;
+    
+    // Use the download directory from settings
+    let download_dir = std::path::Path::new(&settings.download_directory);
+    
+    // Create the directory if it doesn't exist
+    if !download_dir.exists() {
+        std::fs::create_dir_all(download_dir)
+            .map_err(|e| format!("Failed to create download directory: {}", e))?;
+    }
     
     // Create a file name with the report name if available
     let report_name = report.get("name")
@@ -512,13 +585,21 @@ fn download_report(_app: tauri::AppHandle, report: serde_json::Value) -> Result<
 }
 
 #[tauri::command]
-fn download_csv(_app: tauri::AppHandle, reportData: serde_json::Value) -> Result<String, String> {
+fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<String, String> {
     // Create a timestamp for the file name
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
     
-    // Get the downloads directory
-    let home_dir = dirs::home_dir().ok_or_else(|| "Failed to get home directory".to_string())?;
-    let download_dir = home_dir.join("Downloads");
+    // Load settings to get the custom download directory
+    let settings = load_settings(app.clone())?;
+    
+    // Use the download directory from settings
+    let download_dir = std::path::Path::new(&settings.download_directory);
+    
+    // Create the directory if it doesn't exist
+    if !download_dir.exists() {
+        std::fs::create_dir_all(download_dir)
+            .map_err(|e| format!("Failed to create download directory: {}", e))?;
+    }
     
     // Create a file name
     let file_name = format!("campaign_report_{}.csv", timestamp);
@@ -557,9 +638,7 @@ fn download_csv(_app: tauri::AppHandle, reportData: serde_json::Value) -> Result
         .map_err(|e| format!("Failed to write CSV: {}", e))?;
     
     // Return the file path as a string
-    file_path.to_str()
-        .ok_or_else(|| "Failed to get file path".to_string())
-        .map(|s| s.to_string())
+    Ok(file_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]

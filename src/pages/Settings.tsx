@@ -25,8 +25,10 @@ import {
   Search as SearchIcon,
   ArrowUpward as SortAscIcon,
   ArrowDownward as SortDescIcon,
+  FolderOpen as FolderOpenIcon,
 } from '@mui/icons-material';
 import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
 
 // Interface for our Settings data structure
 // These fields need to match the Rust backend's Settings struct
@@ -34,6 +36,7 @@ interface Settings {
   mailchimp_api_key: string;
   mailchimp_audience_id: string;
   advertisers: string[];
+  download_directory: string;
 }
 
 const Settings = () => {
@@ -42,6 +45,7 @@ const Settings = () => {
     mailchimp_api_key: '',
     mailchimp_audience_id: '',
     advertisers: [],
+    download_directory: '',
   });
   
   // UI state management
@@ -115,6 +119,39 @@ const Settings = () => {
       setSnackbar({
         open: true,
         message: `Failed to save settings: ${error}`,
+        severity: 'error',
+      });
+    }
+  };
+
+  // Open directory picker dialog to select download directory
+  const handleSelectDirectory = async () => {
+    try {
+      // Use Tauri dialog plugin to open directory picker
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: 'Select Download Directory',
+      });
+      
+      if (selected) {
+        // Update settings with selected directory
+        setSettings({
+          ...settings,
+          download_directory: selected as string,
+        });
+        
+        setSnackbar({
+          open: true,
+          message: 'Download directory updated',
+          severity: 'success',
+        });
+      }
+    } catch (error) {
+      console.error('Error selecting directory:', error);
+      setSnackbar({
+        open: true,
+        message: `Failed to select directory: ${error}`,
         severity: 'error',
       });
     }
@@ -325,6 +362,47 @@ const Settings = () => {
               Debug Info
             </Button>
           </div>
+        </div>
+      </div>
+      
+      {/* Download Directory Settings */}
+      <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
+        <h2 className="text-xl font-semibold mb-4">Download Directory</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Select where CSV reports and other downloads will be saved.
+        </p>
+        <div className="flex gap-2 items-center">
+          <TextField
+            label="Download Directory"
+            value={settings.download_directory}
+            onChange={(e) => setSettings({ ...settings, download_directory: e.target.value })}
+            fullWidth
+            size="small"
+            InputProps={{
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton 
+                    onClick={handleSelectDirectory}
+                    title="Browse for folder"
+                    edge="end"
+                  >
+                    <FolderOpenIcon />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            sx={textFieldSx}
+          />
+        </div>
+        <div className="mt-4">
+          <Button
+            variant="contained"
+            onClick={handleSaveSettings}
+            className="bg-[#002E5D] hover:bg-[#159581]"
+            size="small"
+          >
+            Save Directory
+          </Button>
         </div>
       </div>
 
