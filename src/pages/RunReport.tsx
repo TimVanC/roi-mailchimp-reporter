@@ -89,18 +89,28 @@ const RunReport = () => {
     percentage: number;
     message: string;
     timeRemaining: number | null;
+    currentCampaign: number;
+    totalCampaigns: number;
   }>({
     stage: '',
     percentage: 0,
     message: '',
     timeRemaining: null,
+    currentCampaign: 0,
+    totalCampaigns: 0,
   });
+
+  // Add a reference to store the unlisten function for progress updates
+  const [progressUnlisten, setProgressUnlisten] = useState<UnlistenFn | null>(null);
 
   // Load settings including advertisers on component mount
   // Also set up a polling mechanism to keep settings in sync
   useEffect(() => {
     console.log('RunReport component mounted, loading settings...');
     loadSettings();
+    
+    // Set up event listener for real-time progress updates
+    setupProgressListener();
     
     // Add a timer to reload settings every few seconds while the component is mounted
     // This ensures any changes made in the Settings page are reflected here
@@ -109,11 +119,64 @@ const RunReport = () => {
       loadSettings();
     }, 3000); // Reload every 3 seconds
     
-    // Clean up interval on unmount to prevent memory leaks
+    // Clean up interval and event listeners on unmount to prevent memory leaks
     return () => {
       clearInterval(intervalId);
+      
+      // Clean up the progress event listener
+      if (progressUnlisten) {
+        progressUnlisten();
+      }
     };
   }, []);
+
+  // Set up the progress listener for real-time updates
+  const setupProgressListener = async () => {
+    try {
+      // Unregister any existing listener first
+      if (progressUnlisten) {
+        await progressUnlisten();
+      }
+      
+      // Register new listener for "report-progress" events
+      const unlisten = await listen("report-progress", (event) => {
+        console.log("Received progress update:", event);
+        
+        // Extract progress data from the event payload
+        const update = event.payload as ProgressUpdate;
+        
+        // Parse campaign count from message if available
+        let currentCampaign = 0;
+        let totalCampaigns = 0;
+        
+        // Try to extract current campaign and total from message using regex
+        const campaignRegex = /Processing campaign (\d+) of (\d+)/;
+        const match = update.message.match(campaignRegex);
+        
+        if (match && match.length >= 3) {
+          currentCampaign = parseInt(match[1], 10);
+          totalCampaigns = parseInt(match[2], 10);
+        }
+        
+        // Update progress state with the new information
+        setProgress({
+          stage: update.stage,
+          percentage: update.progress,
+          message: update.message,
+          timeRemaining: update.timeRemaining,
+          currentCampaign,
+          totalCampaigns,
+        });
+      });
+      
+      // Store the unlisten function for cleanup
+      setProgressUnlisten(() => unlisten);
+      console.log("Progress event listener registered");
+      
+    } catch (error) {
+      console.error("Failed to set up progress listener:", error);
+    }
+  };
 
   // Function to format time remaining
   const formatTimeRemaining = (seconds: number | null): string => {
@@ -325,6 +388,8 @@ const RunReport = () => {
       percentage: 0,
       message: '',
       timeRemaining: null,
+      currentCampaign: 0,
+      totalCampaigns: 0,
     });
     
     // Validate at least one metric is selected
@@ -381,11 +446,26 @@ const RunReport = () => {
       if (response.progress_updates && response.progress_updates.length > 0) {
         // Get the last progress update
         const lastUpdate = response.progress_updates[response.progress_updates.length - 1];
+        
+        // Parse campaign info from message if available
+        let currentCampaign = 0;
+        let totalCampaigns = 0;
+        
+        const campaignRegex = /Processing campaign (\d+) of (\d+)/;
+        const match = lastUpdate.message.match(campaignRegex);
+        
+        if (match && match.length >= 3) {
+          currentCampaign = parseInt(match[1], 10);
+          totalCampaigns = parseInt(match[2], 10);
+        }
+        
         setProgress({
           stage: lastUpdate.stage,
           percentage: lastUpdate.progress,
           message: lastUpdate.message,
           timeRemaining: lastUpdate.timeRemaining,
+          currentCampaign,
+          totalCampaigns,
         });
       }
 
@@ -736,7 +816,9 @@ const RunReport = () => {
             <Box sx={{ mt: 4, mb: 2 }}>
               <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                  {progress.message}
+                  {progress.currentCampaign > 0 && progress.totalCampaigns > 0 
+                    ? `Processing campaign ${progress.currentCampaign} of ${progress.totalCampaigns}` 
+                    : progress.message}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {progress.percentage}%

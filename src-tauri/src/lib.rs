@@ -263,12 +263,20 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     let mut progress_updates = Vec::new();
     
     // First progress update
-    progress_updates.push(ProgressUpdate {
+    let initial_update = ProgressUpdate {
         stage: "Initializing".to_string(),
         progress: 0,
         message: "Starting report generation...".to_string(),
         time_remaining: None,
-    });
+    };
+    
+    // Store in vector and emit to frontend
+    progress_updates.push(initial_update.clone());
+    
+    // Emit the progress update to the frontend
+    if let Err(e) = app.emit_all("report-progress", initial_update) {
+        println!("Failed to emit progress update: {}", e);
+    }
 
     // Load settings
     let settings = load_settings(app.clone())?;
@@ -283,12 +291,18 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     }
 
     // 10% progress
-    progress_updates.push(ProgressUpdate {
+    let connecting_update = ProgressUpdate {
         stage: "FetchingCampaigns".to_string(),
         progress: 10,
         message: "Connecting to Mailchimp API...".to_string(),
         time_remaining: None,
-    });
+    };
+    
+    // Store and emit update
+    progress_updates.push(connecting_update.clone());
+    if let Err(e) = app.emit_all("report-progress", connecting_update) {
+        println!("Failed to emit progress update: {}", e);
+    }
 
     // Create Mailchimp API client
     let client = reqwest::Client::new();
@@ -309,12 +323,18 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     );
     
     // 20% progress
-    progress_updates.push(ProgressUpdate {
+    let fetching_update = ProgressUpdate {
         stage: "FetchingCampaigns".to_string(),
         progress: 20,
         message: "Fetching campaign data from Mailchimp...".to_string(),
         time_remaining: None,
-    });
+    };
+    
+    // Store and emit update
+    progress_updates.push(fetching_update.clone());
+    if let Err(e) = app.emit_all("report-progress", fetching_update) {
+        println!("Failed to emit progress update: {}", e);
+    }
     
     let campaigns_response = client
         .get(&campaigns_url)
@@ -351,12 +371,18 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     };
     
     // 30% progress
-    progress_updates.push(ProgressUpdate {
+    let filtering_update = ProgressUpdate {
         stage: "FilteringCampaigns".to_string(),
         progress: 30,
         message: format!("Found {} campaigns. Filtering by newsletter type...", campaigns.len()),
         time_remaining: None,
-    });
+    };
+    
+    // Store and emit update
+    progress_updates.push(filtering_update.clone());
+    if let Err(e) = app.emit_all("report-progress", filtering_update) {
+        println!("Failed to emit progress update: {}", e);
+    }
     
     // Filter campaigns by newsletter type
     let mut filtered_campaigns = Vec::new();
@@ -382,12 +408,18 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     }
     
     // 40% progress
-    progress_updates.push(ProgressUpdate {
+    let processing_start_update = ProgressUpdate {
         stage: "ProcessingCampaigns".to_string(),
         progress: 40,
         message: format!("Found {} matching campaigns. Processing details...", filtered_campaigns.len()),
         time_remaining: None,
-    });
+    };
+    
+    // Store and emit update
+    progress_updates.push(processing_start_update.clone());
+    if let Err(e) = app.emit_all("report-progress", processing_start_update) {
+        println!("Failed to emit progress update: {}", e);
+    }
     
     // Process each filtered campaign to analyze clicks for the specific ad URLs
     let mut report_data = Vec::new();
@@ -433,12 +465,23 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         };
         
         // Add progress update for individual campaign
-        progress_updates.push(ProgressUpdate {
+        let campaign_update = ProgressUpdate {
             stage: "ProcessingCampaigns".to_string(),
             progress: current_progress,
             message: format!("Processing campaign {} of {} ({})", index + 1, filtered_campaigns.len(), send_time),
             time_remaining,
-        });
+        };
+        
+        // Store and emit update - emit every campaign or every few campaigns
+        progress_updates.push(campaign_update.clone());
+        
+        // For larger batches, don't emit every single update to reduce network traffic
+        // For example, emit every 5th update, or when progress crosses a percentage threshold
+        if index % 3 == 0 || index == filtered_campaigns.len() - 1 {
+            if let Err(e) = app.emit_all("report-progress", campaign_update) {
+                println!("Failed to emit progress update: {}", e);
+            }
+        }
         
         // Format date as in Python script
         let formatted_date = match chrono::DateTime::parse_from_rfc3339(send_time) {
@@ -507,13 +550,19 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     }
     
     // 80% progress
-    progress_updates.push(ProgressUpdate {
+    let finalizing_update = ProgressUpdate {
         stage: "FinalizingReport".to_string(),
         progress: 80,
         message: "Processing complete. Organizing report data...".to_string(),
         time_remaining: Some(15), // Estimate 15 seconds for finalization
-    });
-
+    };
+    
+    // Store and emit update
+    progress_updates.push(finalizing_update.clone());
+    if let Err(e) = app.emit_all("report-progress", finalizing_update) {
+        println!("Failed to emit progress update: {}", e);
+    }
+    
     // Sort report data by date
     report_data.sort_by(|a, b| {
         let date_a = a.get("send_date").and_then(|d| d.as_str()).unwrap_or("");
@@ -528,12 +577,18 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     });
     
     // 90% progress
-    progress_updates.push(ProgressUpdate {
+    let saving_update = ProgressUpdate {
         stage: "SavingReport".to_string(),
         progress: 90,
         message: "Finalizing and saving report...".to_string(),
         time_remaining: Some(5), // Estimate 5 seconds for saving
-    });
+    };
+    
+    // Store and emit update
+    progress_updates.push(saving_update.clone());
+    if let Err(e) = app.emit_all("report-progress", saving_update) {
+        println!("Failed to emit progress update: {}", e);
+    }
     
     // Save the report
     let report = SavedReport {
@@ -549,12 +604,18 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     save_report(app.clone(), report)?;
 
     // 100% progress
-    progress_updates.push(ProgressUpdate {
+    let complete_update = ProgressUpdate {
         stage: "Complete".to_string(),
         progress: 100,
         message: "Report generation complete!".to_string(),
         time_remaining: Some(0),
-    });
+    };
+    
+    // Store and emit update
+    progress_updates.push(complete_update.clone());
+    if let Err(e) = app.emit_all("report-progress", complete_update) {
+        println!("Failed to emit progress update: {}", e);
+    }
 
     Ok(ReportResponse {
         success: true,
