@@ -17,6 +17,7 @@ import {
   CssBaseline,
   Snackbar,
   Alert,
+  CircularProgress,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
@@ -60,6 +61,8 @@ const RunReport = () => {
   // State for advertisers loaded from settings
   const [advertisers, setAdvertisers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  // Add loading state for report generation
+  const [generating, setGenerating] = useState(false);
 
   // Load settings including advertisers on component mount
   // Also set up a polling mechanism to keep settings in sync
@@ -284,6 +287,9 @@ const RunReport = () => {
     }
 
     try {
+      // Set generating state to true to show loading indicator
+      setGenerating(true);
+      
       // Clean up empty tracking URLs
       const tracking_urls = data.trackingUrls.filter(url => url.trim() !== '');
       
@@ -294,6 +300,7 @@ const RunReport = () => {
           message: 'Please add at least one advertisement URL or keyword',
           severity: 'error',
         });
+        setGenerating(false);
         return;
       }
 
@@ -336,6 +343,9 @@ const RunReport = () => {
         message: `Error generating report: ${error}`,
         severity: 'error',
       });
+    } finally {
+      // Reset generating state when done, whether successful or not
+      setGenerating(false);
     }
   };
 
@@ -657,22 +667,23 @@ const RunReport = () => {
             </div>
           </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-center mt-4">
+          {/* Submit Button Section with loading state */}
+          <div className="mt-6 flex justify-center">
             <Button
               type="submit"
               variant="contained"
-              size="medium"
               disabled={
-                !watch('advertiser') ||
-                !watch('trackingUrls.0') ||
-                !Object.values(watch('metrics')).some(value => value)
+                generating || // Disable while generating
+                !watch('advertiser') || // Require advertiser
+                !watch('trackingUrls.0') || // Require at least one tracking URL
+                !Object.values(watch('metrics')).some(value => value) // Require at least one metric
               }
               sx={{
                 '&.MuiButton-contained': {
-                  backgroundColor: '#159581',
+                  backgroundColor: generating ? '#e5e7eb' : '#159581',
                   fontWeight: 600,
-                  letterSpacing: .8,
+                  letterSpacing: 0.8,
+                  padding: '8px 24px',
                   '&:hover': {
                     backgroundColor: '#138572'
                   },
@@ -682,8 +693,9 @@ const RunReport = () => {
                 }
               }}
               className="px-8 py-2 rounded normal-case font-semibold"
+              startIcon={generating ? <CircularProgress size={20} color="inherit" /> : null}
             >
-              Generate Report
+              {generating ? 'Generating...' : 'Generate Report'}
             </Button>
           </div>
         </form>
