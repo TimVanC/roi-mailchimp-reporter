@@ -37,7 +37,6 @@ import {
 import {
   Download as DownloadIcon,
   Delete as DeleteIcon,
-  Edit as EditIcon,
   TableView as TableViewIcon,
 } from '@mui/icons-material';
 import { invoke } from '@tauri-apps/api/core';

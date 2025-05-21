@@ -42,30 +42,18 @@ import {
 import { DatePicker } from '@mui/x-date-pickers';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import dayjs from 'dayjs';
-import type { NewsletterType } from '@/types';
+import type { NewsletterType, FormData } from '@/types';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { invoke } from '@tauri-apps/api/core';
 import { UnlistenFn, listen } from '@tauri-apps/api/event';
 
 /**
- * Form data interface that defines the structure of the report generation form
- * This matches the expected input format for the Rust backend's report generation function
+ * Snackbar state interface for notifications
  */
-interface FormData {
-  newsletterType: NewsletterType;
-  advertiser: string;
-  trackingUrls: string[];
-  dateRange: {
-    startDate: string;
-    endDate: string;
-  };
-  metrics: {
-    uniqueOpens: boolean;
-    totalOpens: boolean;
-    totalRecipients: boolean;
-    totalClicks: boolean;
-    ctr: boolean;
-  };
+interface SnackbarState {
+  open: boolean;
+  message: string;
+  severity: 'success' | 'error' | 'info' | 'warning';
 }
 
 /**
@@ -76,6 +64,7 @@ interface Settings {
   mailchimp_api_key: string;
   mailchimp_audience_id: string;
   advertisers: string[];
+  download_directory: string;
 }
 
 /**
@@ -111,10 +100,12 @@ interface GenerateReportResponse {
  * Handles form state, data submission, and progress tracking
  */
 const RunReport = () => {
-  // State management for advertisers and loading indicators
+  const [snackbar, setSnackbar] = useState<SnackbarState>({ open: false, message: '', severity: 'info' });
   const [advertisers, setAdvertisers] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
+  const [selectedAdvertiser, setSelectedAdvertiser] = useState<string>('');
+  const [selectedNewsletterType, setSelectedNewsletterType] = useState<string>('');
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
   
   // Comprehensive progress tracking state
   const [progress, setProgress] = useState<{
@@ -235,25 +226,19 @@ const RunReport = () => {
    */
   const loadSettings = async () => {
     try {
-      setLoading(true);
       console.log('Loading settings in RunReport...');
       const settings = await invoke<Settings>('load_settings');
       console.log('Loaded settings in RunReport:', settings);
       
       // Check if advertisers have changed before updating state
-      // This prevents unnecessary re-renders
       if (JSON.stringify(settings.advertisers) !== JSON.stringify(advertisers)) {
         console.log('Advertisers have changed, updating state...');
         setAdvertisers(settings.advertisers);
-      } else {
-        console.log('Advertisers unchanged, keeping current state');
       }
       
       console.log('Advertisers set to:', settings.advertisers);
     } catch (error) {
       console.error('Failed to load settings in RunReport:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -396,17 +381,6 @@ const RunReport = () => {
   // State for tracking URLs - separate from form state for easier manipulation
   const [trackingUrls, setTrackingUrls] = useState<string[]>(['']);
 
-  // Notification state
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: 'success' | 'error';
-  }>({
-    open: false,
-    message: '',
-    severity: 'success',
-  });
-
   // Add a new tracking URL field
   const handleAddUrl = () => {
     setTrackingUrls([...trackingUrls, '']);
@@ -445,7 +419,7 @@ const RunReport = () => {
 
     try {
       // Set generating state to true to show loading indicator
-      setGenerating(true);
+      setIsGenerating(true);
       
       // Clean up empty tracking URLs
       const tracking_urls = data.trackingUrls.filter(url => url.trim() !== '');
@@ -457,7 +431,7 @@ const RunReport = () => {
           message: 'Please add at least one advertisement URL or keyword',
           severity: 'error',
         });
-        setGenerating(false);
+        setIsGenerating(false);
         return;
       }
 
@@ -529,7 +503,7 @@ const RunReport = () => {
       });
     } finally {
       // Reset generating state when done, whether successful or not
-      setGenerating(false);
+      setIsGenerating(false);
     }
   };
 
@@ -852,7 +826,7 @@ const RunReport = () => {
           </div>
 
           {/* Progress indicator - only shown when generating a report */}
-          {generating && (
+          {isGenerating && (
             <Box sx={{ mt: 4, mb: 2 }}>
               <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
@@ -900,14 +874,14 @@ const RunReport = () => {
               type="submit"
               variant="contained"
               disabled={
-                generating || // Disable while generating
+                isGenerating || // Disable while generating
                 !watch('advertiser') || // Require advertiser
                 !watch('trackingUrls.0') || // Require at least one tracking URL
                 !Object.values(watch('metrics')).some(value => value) // Require at least one metric
               }
               sx={{
                 '&.MuiButton-contained': {
-                  backgroundColor: generating ? '#e5e7eb' : '#159581',
+                  backgroundColor: isGenerating ? '#e5e7eb' : '#159581',
                   fontWeight: 600,
                   letterSpacing: 0.8,
                   padding: '8px 24px',
@@ -920,9 +894,9 @@ const RunReport = () => {
                 }
               }}
               className="px-8 py-2 rounded normal-case font-semibold"
-              startIcon={generating ? <CircularProgress size={20} color="inherit" /> : null}
+              startIcon={isGenerating ? <CircularProgress size={20} color="inherit" /> : null}
             >
-              {generating ? 'Generating...' : 'Generate Report'}
+              {isGenerating ? 'Generating...' : 'Generate Report'}
             </Button>
           </div>
         </form>
