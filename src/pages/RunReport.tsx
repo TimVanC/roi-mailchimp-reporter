@@ -482,8 +482,28 @@ const RunReport = () => {
         severity: response.success ? 'success' : 'error',
       });
 
-      if (response.success) {
+      if (response.success && response.data) {
         console.log('Report data:', response.data);
+        
+        // Ensure the report data has all required fields
+        const report = {
+          ...response.data,
+          advertiser: data.advertiser,
+          report_type: data.newsletterType,
+          date_range: {
+            start_date: data.dateRange.startDate,
+            end_date: data.dateRange.endDate,
+          },
+          created: new Date().toISOString(),
+        };
+
+        // Emit report-generated event with the complete report data
+        await invoke('emit_event', {
+          event: 'report-generated',
+          payload: {
+            report
+          }
+        });
       }
     } catch (error) {
       setSnackbar({

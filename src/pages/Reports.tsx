@@ -13,6 +13,7 @@
  * - Filtering and search
  * - Batch operations
  * - Responsive table layout
+ * - Real-time updates when new reports are generated
  */
 
 import { useState, useEffect } from 'react';
@@ -40,7 +41,9 @@ import {
   TableView as TableViewIcon,
 } from '@mui/icons-material';
 import { invoke } from '@tauri-apps/api/core';
+import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import type { NewsletterType } from '@/types';
+import { useReportStore } from '@/store/reportStore';
 
 /**
  * Report interface defining the structure of saved reports
@@ -69,8 +72,10 @@ const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care',
  * Main Reports component that handles report management and display
  */
 const Reports = () => {
-  // Core state management for reports and filtering
-  const [reports, setReports] = useState<Report[]>([]);
+  // Get reports and actions from the global store
+  const { reports, setReports, addReport, deleteReport: storeDeleteReport } = useReportStore();
+  
+  // Local state for filtering and UI
   const [advertisers, setAdvertisers] = useState<string[]>([]);
   const [selectedAdvertiser, setSelectedAdvertiser] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('');
@@ -87,12 +92,48 @@ const Reports = () => {
   }>({ open: false, reportId: null });
 
   /**
-   * Load reports when component mounts
-   * This ensures we always have the latest data
+   * Load reports when component mounts and set up event listeners
    */
   useEffect(() => {
-    loadReports();
-  }, []);
+    let unsubscribe: UnlistenFn | undefined;
+
+    const initialize = async () => {
+      try {
+        // Initial load of reports
+        await loadReports();
+        
+        // Set up event listener for new reports
+        unsubscribe = await listen<{ report: any }>('report-generated', (event) => {
+          console.log('Received new report:', event.payload.report);
+          addReport(event.payload.report);
+          
+          // Update advertisers list if needed
+          const newAdvertiser = event.payload.report.advertiser;
+          if (!advertisers.includes(newAdvertiser)) {
+            setAdvertisers(prev => [...prev, newAdvertiser]);
+          }
+          
+          // Show success notification
+          setSnackbar({
+            open: true,
+            message: 'New report generated successfully!',
+            severity: 'success'
+          });
+        });
+      } catch (error) {
+        console.error('Failed to initialize Reports component:', error);
+      }
+    };
+
+    initialize();
+
+    // Cleanup function
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, [addReport, advertisers]);
 
   /**
    * Fetches reports from backend storage
@@ -100,7 +141,7 @@ const Reports = () => {
    */
   const loadReports = async () => {
     try {
-      const savedReports = await invoke<Report[]>('load_reports');
+      const savedReports = await invoke<any[]>('load_reports');
       setReports(savedReports);
       
       // Build unique advertiser list for filter dropdown
@@ -133,7 +174,7 @@ const Reports = () => {
    * Format date range for display
    * Converts ISO dates to localized strings
    */
-  const formatDateRange = (dateRange: Report['date_range']) => {
+  const formatDateRange = (dateRange: { start_date: string; end_date: string }) => {
     const startDate = new Date(dateRange.start_date);
     const endDate = new Date(dateRange.end_date);
     return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
@@ -143,7 +184,7 @@ const Reports = () => {
    * Opens report in system's default spreadsheet application
    * Generates a temporary CSV file and launches it
    */
-  const handleOpenInExcel = async (report: Report) => {
+  const handleOpenInExcel = async (report: any) => {
     try {
       const filePath = await invoke<string>('open_report_in_excel', { reportData: report });
       await invoke('opener_open', { path: filePath });
@@ -165,7 +206,7 @@ const Reports = () => {
    * Downloads report as CSV to user's download directory
    * Uses the configured download path from settings
    */
-  const handleDownload = async (report: Report) => {
+  const handleDownload = async (report: any) => {
     try {
       const filePath = await invoke<string>('download_csv', { reportData: report });
       setSnackbar({ 
@@ -184,12 +225,12 @@ const Reports = () => {
 
   /**
    * Deletes a report after user confirmation
-   * Updates UI immediately on success
+   * Updates both backend and store state
    */
   const handleDelete = async (reportId: string) => {
     try {
       await invoke('delete_report', { reportId: reportId });
-      setReports((prev) => prev.filter((r) => r.id !== reportId));
+      storeDeleteReport(reportId);
       setSnackbar({ open: true, message: 'Report deleted.', severity: 'success' });
     } catch (error) {
       console.error('Delete error:', error);
