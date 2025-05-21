@@ -1,23 +1,36 @@
+/**
+ * Main application entry point for the ROI Mailchimp Reporter
+ * This file sets up the core application structure including routing, theming, and layout
+ * 
+ * Key features:
+ * - React Router for navigation between main sections
+ * - Material-UI theming with ROI brand colors
+ * - Responsive layout with header and main content areas
+ * - Date picker provider for report date selection
+ */
+
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import reactLogo from './assets/react.svg';
 
-// Import our page components
-import RunReport from './pages/RunReport';
-import Reports from './pages/Reports';
-import Settings from './pages/Settings';
+// Import our page components that represent the main sections of the app
+import RunReport from './pages/RunReport';  // Report generation interface
+import Reports from './pages/Reports';      // Report history and management
+import Settings from './pages/Settings';    // Application configuration
 
-// Main theme configuration for the entire app
-// Using ROI brand colors - dark blue for primary, light gray for background
+/**
+ * Global theme configuration using ROI's brand colors and styling preferences
+ * This ensures consistent styling across all components and pages
+ */
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#001223', // ROI dark blue
+      main: '#001223', // ROI dark blue - primary brand color
     },
     background: {
-      default: '#e5e9f2', // Light gray for a clean, professional look
+      default: '#e5e9f2', // Light gray background for better readability
     },
   },
   typography: {
@@ -32,8 +45,14 @@ const theme = createTheme({
   },
 });
 
-// Navigation component with highlighting for the active route
-// This gives users clear visual feedback about which page they're on
+/**
+ * Navigation component that provides the main app navigation
+ * Features:
+ * - Responsive design with proper spacing
+ * - Visual feedback for active route
+ * - Smooth hover transitions
+ * - Accessible navigation links
+ */
 const Navigation = () => {
   const location = useLocation();
   
@@ -43,8 +62,8 @@ const Navigation = () => {
         to="/" 
         className={`px-4 py-1.5 rounded-md text-base font-semibold transition-colors ${
           location.pathname === '/' 
-            ? 'bg-[#e5e9f2] text-gray-900' // Active state
-            : 'text-[#e5e9f2] hover:text-white' // Inactive state with hover effect
+            ? 'bg-[#e5e9f2] text-gray-900' // Active state styling
+            : 'text-[#e5e9f2] hover:text-white' // Inactive with hover effect
         }`}
       >
         Run Report
@@ -73,16 +92,21 @@ const Navigation = () => {
   );
 };
 
-// Main App component that sets up the router and overall layout
-// Using a standard header-content layout with container constraints for responsive design
+/**
+ * Main App component that orchestrates the entire application
+ * Provides:
+ * - Material-UI theme provider for consistent styling
+ * - Date picker functionality for report date selection
+ * - Responsive layout with header and main content
+ * - Route-based content rendering
+ */
 const App = () => {
   return (
     <ThemeProvider theme={theme}>
-      {/* Date picker provider needed for the date range selectors */}
       <LocalizationProvider dateAdapter={AdapterDayjs}>
         <Router>
           <div className="min-h-screen bg-background flex flex-col">
-            {/* Header with ROI logo and main navigation */}
+            {/* Header section with logo and navigation */}
             <header className="bg-header shadow-lg">
               <div className="container mx-auto px-6 py-4 flex justify-between items-center">
                 <div className="flex items-center space-x-16">
@@ -96,7 +120,7 @@ const App = () => {
               </div>
             </header>
 
-            {/* Main content area with route-based content rendering */}
+            {/* Main content area with responsive container */}
             <main className="flex-1 container mx-auto px-6 py-8">
               <div className="bg-white rounded-lg shadow-sm p-8 max-w-3xl mx-auto">
                 <Routes>

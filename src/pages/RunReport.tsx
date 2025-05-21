@@ -1,3 +1,21 @@
+/**
+ * RunReport Component
+ * 
+ * This is the main report generation interface of the application.
+ * It allows users to:
+ * - Select newsletter types (AM/PM/Energy/Health Care/Breaking News)
+ * - Choose advertisers from the configured list
+ * - Add tracking URLs for campaign analysis
+ * - Select date ranges for report generation
+ * - Choose which metrics to include in the report
+ * 
+ * Features:
+ * - Real-time progress updates during report generation
+ * - Auto-syncing with settings changes
+ * - Form validation and error handling
+ * - Responsive design for all screen sizes
+ */
+
 import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
@@ -29,8 +47,10 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { invoke } from '@tauri-apps/api/core';
 import { UnlistenFn, listen } from '@tauri-apps/api/event';
 
-// Form data interface for React Hook Form
-// This matches the structure expected by our Rust backend
+/**
+ * Form data interface that defines the structure of the report generation form
+ * This matches the expected input format for the Rust backend's report generation function
+ */
 interface FormData {
   newsletterType: NewsletterType;
   advertiser: string;
@@ -48,19 +68,26 @@ interface FormData {
   };
 }
 
-// Interface for application settings
-// Needed to get the advertisers list from settings
+/**
+ * Settings interface for loading application configuration
+ * Used to retrieve the list of configured advertisers from the backend
+ */
 interface Settings {
   mailchimp_api_key: string;
   mailchimp_audience_id: string;
   advertisers: string[];
 }
 
-// Newsletter types supported by the application
-// These match the options in the Mailchimp data
+/**
+ * Available newsletter types supported by the application
+ * These correspond to different campaign types in Mailchimp
+ */
 const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care', 'Breaking News'];
 
-// Add a type for progress events from the backend
+/**
+ * Progress update interface for tracking report generation status
+ * Receives real-time updates from the Rust backend during processing
+ */
 interface ProgressUpdate {
   stage: string;
   progress: number;
@@ -68,7 +95,10 @@ interface ProgressUpdate {
   timeRemaining: number | null;
 }
 
-// Add type for the response from generate_report
+/**
+ * Response interface for the generate_report Rust function
+ * Contains success status, messages, and the actual report data
+ */
 interface GenerateReportResponse {
   success: boolean;
   message: string;
@@ -76,14 +106,17 @@ interface GenerateReportResponse {
   progress_updates: ProgressUpdate[];
 }
 
+/**
+ * Main report generation component
+ * Handles form state, data submission, and progress tracking
+ */
 const RunReport = () => {
-  // State for advertisers loaded from settings
+  // State management for advertisers and loading indicators
   const [advertisers, setAdvertisers] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  // Add loading state for report generation
   const [generating, setGenerating] = useState(false);
   
-  // Add state for progress reporting
+  // Comprehensive progress tracking state
   const [progress, setProgress] = useState<{
     stage: string;
     percentage: number;
@@ -100,56 +133,59 @@ const RunReport = () => {
     totalCampaigns: 0,
   });
 
-  // Add a reference to store the unlisten function for progress updates
+  // Store cleanup function for progress event listener
   const [progressUnlisten, setProgressUnlisten] = useState<UnlistenFn | null>(null);
 
-  // Load settings including advertisers on component mount
-  // Also set up a polling mechanism to keep settings in sync
+  /**
+   * Component initialization effect
+   * Sets up:
+   * - Initial settings load
+   * - Progress event listener
+   * - Settings auto-refresh
+   * - Cleanup on unmount
+   */
   useEffect(() => {
     console.log('RunReport component mounted, loading settings...');
     loadSettings();
-    
-    // Set up event listener for real-time progress updates
     setupProgressListener();
     
-    // Add a timer to reload settings every few seconds while the component is mounted
-    // This ensures any changes made in the Settings page are reflected here
+    // Auto-refresh settings every 3 seconds
     const intervalId = setInterval(() => {
       console.log('Reloading settings in RunReport...');
       loadSettings();
-    }, 3000); // Reload every 3 seconds
+    }, 3000);
     
-    // Clean up interval and event listeners on unmount to prevent memory leaks
+    // Cleanup function
     return () => {
       clearInterval(intervalId);
-      
-      // Clean up the progress event listener
       if (progressUnlisten) {
         progressUnlisten();
       }
     };
   }, []);
 
-  // Set up the progress listener for real-time updates
+  /**
+   * Sets up real-time progress event listener
+   * Handles:
+   * - Registration of event listener
+   * - Parsing of progress updates
+   * - Extraction of campaign counting information
+   * - Progress state updates
+   */
   const setupProgressListener = async () => {
     try {
-      // Unregister any existing listener first
       if (progressUnlisten) {
         await progressUnlisten();
       }
       
-      // Register new listener for "report-progress" events
       const unlisten = await listen("report-progress", (event) => {
         console.log("Received progress update:", event);
         
-        // Extract progress data from the event payload
         const update = event.payload as ProgressUpdate;
-        
-        // Parse campaign count from message if available
         let currentCampaign = 0;
         let totalCampaigns = 0;
         
-        // Try to extract current campaign and total from message using regex
+        // Extract campaign progress from message
         const campaignRegex = /Processing campaign (\d+) of (\d+)/;
         const match = update.message.match(campaignRegex);
         
@@ -158,7 +194,6 @@ const RunReport = () => {
           totalCampaigns = parseInt(match[2], 10);
         }
         
-        // Update progress state with the new information
         setProgress({
           stage: update.stage,
           percentage: update.progress,
@@ -169,7 +204,6 @@ const RunReport = () => {
         });
       });
       
-      // Store the unlisten function for cleanup
       setProgressUnlisten(() => unlisten);
       console.log("Progress event listener registered");
       
@@ -178,7 +212,10 @@ const RunReport = () => {
     }
   };
 
-  // Function to format time remaining
+  /**
+   * Formats the remaining time into a human-readable string
+   * Converts seconds into minutes:seconds format when appropriate
+   */
   const formatTimeRemaining = (seconds: number | null): string => {
     if (seconds === null) return '';
     
@@ -191,8 +228,11 @@ const RunReport = () => {
     }
   };
 
-  // Load settings from the Tauri backend
-  // Only update advertisers state if the list has actually changed
+  /**
+   * Loads application settings from the backend
+   * Updates advertiser list only if it has changed
+   * Handles loading states and error logging
+   */
   const loadSettings = async () => {
     try {
       setLoading(true);

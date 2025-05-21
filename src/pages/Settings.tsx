@@ -1,3 +1,20 @@
+/**
+ * Settings Component
+ * 
+ * This component manages all application configuration including:
+ * - Mailchimp API credentials
+ * - Advertiser management (add/remove/search)
+ * - Download directory selection
+ * - Settings persistence
+ * 
+ * Features:
+ * - Real-time settings validation
+ * - Searchable advertiser list with pagination
+ * - Secure credential storage
+ * - User-friendly file system integration
+ * - Error handling and user feedback
+ */
+
 import React, { useState, useEffect } from 'react';
 import {
   TextField,
@@ -30,17 +47,23 @@ import {
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 
-// Interface for our Settings data structure
-// These fields need to match the Rust backend's Settings struct
+/**
+ * Settings interface that defines the structure of our application configuration
+ * This must match the Rust backend's Settings struct exactly for proper serialization
+ */
 interface Settings {
-  mailchimp_api_key: string;
-  mailchimp_audience_id: string;
-  advertisers: string[];
-  download_directory: string;
+  mailchimp_api_key: string;      // Mailchimp API authentication key
+  mailchimp_audience_id: string;   // Target Mailchimp audience/list ID
+  advertisers: string[];          // List of configured advertisers
+  download_directory: string;     // Where generated reports will be saved
 }
 
+/**
+ * Main Settings component that provides the configuration interface
+ * Handles all settings-related operations and state management
+ */
 const Settings = () => {
-  // Main settings state with default empty values
+  // Primary settings state with type-safe default values
   const [settings, setSettings] = useState<Settings>({
     mailchimp_api_key: '',
     mailchimp_audience_id: '',
@@ -48,7 +71,7 @@ const Settings = () => {
     download_directory: '',
   });
   
-  // UI state management
+  // UI state management for modals, notifications, and user feedback
   const [isAddAdvertiserOpen, setIsAddAdvertiserOpen] = useState(false);
   const [newAdvertiser, setNewAdvertiser] = useState('');
   const [settingsPath, setSettingsPath] = useState<string>('');
@@ -62,19 +85,25 @@ const Settings = () => {
     severity: 'success',
   });
   
-  // Advertisers list management
+  // Advertiser list management with search, pagination, and sorting
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const itemsPerPage = 10; // Show 10 advertisers per page
+  const itemsPerPage = 10; // Number of advertisers shown per page
 
-  // Load settings when component mounts
+  /**
+   * Initialize component by loading settings and determining storage location
+   * This runs once when the component mounts
+   */
   useEffect(() => {
     loadSettings();
     getSettingsPath();
   }, []);
 
-  // Get the path where settings are stored (useful for debugging)
+  /**
+   * Retrieves the filesystem path where settings are stored
+   * Useful for debugging and user support
+   */
   const getSettingsPath = async () => {
     try {
       const path = await invoke<string>('get_settings_path');
@@ -85,7 +114,10 @@ const Settings = () => {
     }
   };
 
-  // Load settings from Tauri backend
+  /**
+   * Loads settings from the Rust backend's persistent storage
+   * Updates component state with loaded values
+   */
   const loadSettings = async () => {
     try {
       const loadedSettings = await invoke<Settings>('load_settings');
@@ -101,7 +133,10 @@ const Settings = () => {
     }
   };
 
-  // Save settings to Tauri backend
+  /**
+   * Persists current settings to storage via Rust backend
+   * Provides user feedback and verifies save operation
+   */
   const handleSaveSettings = async () => {
     try {
       console.log('Saving settings:', settings);
@@ -112,8 +147,7 @@ const Settings = () => {
         message: 'Settings saved successfully',
         severity: 'success',
       });
-      // Reload settings to verify they were saved correctly
-      await loadSettings();
+      await loadSettings(); // Verify save by reloading
     } catch (error) {
       console.error('Error saving settings:', error);
       setSnackbar({
@@ -124,10 +158,12 @@ const Settings = () => {
     }
   };
 
-  // Open directory picker dialog to select download directory
+  /**
+   * Opens system file picker for download directory selection
+   * Updates settings with user's chosen directory
+   */
   const handleSelectDirectory = async () => {
     try {
-      // Use Tauri dialog plugin to open directory picker
       const selected = await open({
         directory: true,
         multiple: false,
@@ -135,7 +171,6 @@ const Settings = () => {
       });
       
       if (selected) {
-        // Update settings with selected directory
         setSettings({
           ...settings,
           download_directory: selected as string,
@@ -157,32 +192,33 @@ const Settings = () => {
     }
   };
 
-  // Add a new advertiser to the list
-  // We use a direct approach to ensure the state is properly updated
-  // before saving to prevent race conditions
+  /**
+   * Adds a new advertiser to the settings
+   * Uses a careful approach to prevent race conditions:
+   * 1. Creates new settings object
+   * 2. Updates state
+   * 3. Waits for state update
+   * 4. Persists to storage
+   * 5. Verifies save by reloading
+   */
   const handleAddAdvertiser = async () => {
     if (newAdvertiser.trim()) {
       console.log('Adding advertiser:', newAdvertiser.trim());
       
-      // Create a new copy of the settings object with the new advertiser
       const updatedSettings = {
         ...settings,
         advertisers: [...settings.advertisers, newAdvertiser.trim()],
       };
       
       console.log('Updated settings before setState:', updatedSettings);
-      
-      // Update state with the new settings
       setSettings(updatedSettings);
       
-      // Close dialog and clear input
       setNewAdvertiser('');
       setIsAddAdvertiserOpen(false);
       
-      // Use a small timeout to ensure state is updated before saving
+      // Ensure state is updated before saving
       await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Now save the settings - pass the updatedSettings directly instead of using state
       try {
         console.log('About to save settings with new advertiser:', updatedSettings);
         await invoke('save_settings', { settings: updatedSettings });
@@ -193,8 +229,7 @@ const Settings = () => {
           severity: 'success',
         });
         
-        // Reload settings to verify they were saved correctly
-        await loadSettings();
+        await loadSettings(); // Verify save operation
       } catch (error) {
         console.error('Error saving settings with new advertiser:', error);
         setSnackbar({

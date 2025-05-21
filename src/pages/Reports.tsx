@@ -1,3 +1,20 @@
+/**
+ * Reports Component
+ * 
+ * This component manages the report history and provides tools for:
+ * - Viewing saved reports
+ * - Filtering reports by advertiser and type
+ * - Exporting reports to Excel/CSV
+ * - Managing report lifecycle (view/edit/delete)
+ * 
+ * Features:
+ * - Sortable report list
+ * - Multiple export options
+ * - Filtering and search
+ * - Batch operations
+ * - Responsive table layout
+ */
+
 import { useState, useEffect } from 'react';
 import {
   Table,
@@ -27,53 +44,68 @@ import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-shell';
 import type { NewsletterType } from '@/types';
 
-// Interface matching the report structure from the Rust backend
-// This needs to match the SavedReport struct in lib.rs
+/**
+ * Report interface defining the structure of saved reports
+ * Must match the SavedReport struct in the Rust backend (lib.rs)
+ */
 interface Report {
-  id: string;
-  name: string;
-  advertiser: string;
-  report_type: NewsletterType;
+  id: string;                 // Unique identifier for the report
+  name: string;               // Display name
+  advertiser: string;         // Associated advertiser
+  report_type: NewsletterType; // Type of newsletter (AM/PM/etc)
   date_range: {
-    start_date: string;
-    end_date: string;
+    start_date: string;      // Report start date
+    end_date: string;        // Report end date
   };
-  created: string;
-  data: any;
+  created: string;           // Report creation timestamp
+  data: any;                 // The actual report data
 }
 
-// Newsletter types supported in the application
-// Used for filtering reports
+/**
+ * Available newsletter types for filtering
+ * These match the types supported in the Mailchimp campaigns
+ */
 const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care', 'Breaking News'];
 
+/**
+ * Main Reports component that handles report management and display
+ */
 const Reports = () => {
-  // Main state for the reports list and filtering
+  // Core state management for reports and filtering
   const [reports, setReports] = useState<Report[]>([]);
   const [advertisers, setAdvertisers] = useState<string[]>([]);
   const [selectedAdvertiser, setSelectedAdvertiser] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('');
   
-  // Notification and dialog states
+  // UI state for notifications and confirmations
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
     severity: 'success' | 'error';
   }>({ open: false, message: '', severity: 'success' });
-  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; reportId: string | null }>({ open: false, reportId: null });
+  const [deleteDialog, setDeleteDialog] = useState<{ 
+    open: boolean; 
+    reportId: string | null 
+  }>({ open: false, reportId: null });
 
-  // Load reports when component mounts
+  /**
+   * Load reports when component mounts
+   * This ensures we always have the latest data
+   */
   useEffect(() => {
     loadReports();
   }, []);
 
-  // Load reports from the backend
-  // Also extracts unique advertisers for the filter dropdown
+  /**
+   * Fetches reports from backend storage
+   * Also extracts unique advertisers for filtering
+   */
   const loadReports = async () => {
     try {
       const savedReports = await invoke<Report[]>('load_reports');
       setReports(savedReports);
       
-      // Extract unique advertisers for the filter dropdown
+      // Build unique advertiser list for filter dropdown
       const uniqueAdvertisers = Array.from(new Set(savedReports.map(r => r.advertiser)));
       setAdvertisers(uniqueAdvertisers);
     } catch (error) {
@@ -81,35 +113,47 @@ const Reports = () => {
     }
   };
 
-  // Sort reports by most recent created date (descending)
-  // This ensures newest reports show at the top of the list
-  const sortedReports = [...reports].sort((a, b) => new Date(b.created).getTime() - new Date(a.created).getTime());
+  /**
+   * Sort reports by creation date (newest first)
+   * This computed value is used in the render
+   */
+  const sortedReports = [...reports].sort((a, b) => 
+    new Date(b.created).getTime() - new Date(a.created).getTime()
+  );
 
-  // Filter reports based on selected advertiser and type
-  // This allows users to quickly find relevant reports
+  /**
+   * Filter reports based on user selections
+   * Applies both advertiser and type filters
+   */
   const filteredReports = sortedReports.filter(report => {
     if (selectedAdvertiser && report.advertiser !== selectedAdvertiser) return false;
     if (selectedType && report.report_type !== selectedType) return false;
     return true;
   });
 
-  // Format date range for display in the table
-  // Converts ISO dates to localized date strings
+  /**
+   * Format date range for display
+   * Converts ISO dates to localized strings
+   */
   const formatDateRange = (dateRange: Report['date_range']) => {
     const startDate = new Date(dateRange.start_date);
     const endDate = new Date(dateRange.end_date);
     return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
   };
 
-  // Open report in Excel for viewing/editing
-  // Sends data to the Rust backend to generate a CSV and open it
+  /**
+   * Opens report in system's default spreadsheet application
+   * Generates a temporary CSV file and launches it
+   */
   const handleOpenInExcel = async (report: Report) => {
     try {
-      // Get the CSV file path from backend - pass the entire report object
       const filePath = await invoke<string>('open_report_in_excel', { reportData: report });
-      // Instead of opening with shell, use the opener plugin for better cross-platform support
       await invoke('opener_open', { path: filePath });
-      setSnackbar({ open: true, message: 'CSV file generated. It should open in Excel.', severity: 'success' });
+      setSnackbar({ 
+        open: true, 
+        message: 'CSV file generated. It should open in Excel.', 
+        severity: 'success' 
+      });
     } catch (error) {
       setSnackbar({
         open: true,
@@ -119,11 +163,12 @@ const Reports = () => {
     }
   };
 
-  // Download report as CSV file
-  // Similar to Excel export but saves to Downloads folder
+  /**
+   * Downloads report as CSV to user's download directory
+   * Uses the configured download path from settings
+   */
   const handleDownload = async (report: Report) => {
     try {
-      // Use our CSV download function - pass the entire report object
       const filePath = await invoke<string>('download_csv', { reportData: report });
       setSnackbar({ 
         open: true, 
@@ -139,17 +184,22 @@ const Reports = () => {
     }
   };
 
-  // Delete a report after confirmation
-  // Note that reportId matches parameter name in Rust backend
+  /**
+   * Deletes a report after user confirmation
+   * Updates UI immediately on success
+   */
   const handleDelete = async (reportId: string) => {
     try {
       await invoke('delete_report', { reportId: reportId });
-      // Update the UI by removing the deleted report
       setReports((prev) => prev.filter((r) => r.id !== reportId));
       setSnackbar({ open: true, message: 'Report deleted.', severity: 'success' });
     } catch (error) {
       console.error('Delete error:', error);
-      setSnackbar({ open: true, message: `Failed to delete: ${error}`, severity: 'error' });
+      setSnackbar({ 
+        open: true, 
+        message: `Failed to delete: ${error}`, 
+        severity: 'error' 
+      });
     }
   };
 
