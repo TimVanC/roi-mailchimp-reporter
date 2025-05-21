@@ -63,6 +63,7 @@ struct SavedReport {
     date_range: DateRange,
     created: String,
     data: serde_json::Value,
+    metrics: Metrics,
 }
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -574,7 +575,14 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     // Create the final report data
     let final_report = serde_json::json!({
         "campaigns": filtered_campaigns,
-        "report_data": report_data
+        "report_data": report_data,
+        "metrics": {
+            "unique_opens": request.metrics.unique_opens,
+            "total_opens": request.metrics.total_opens,
+            "total_recipients": request.metrics.total_recipients,
+            "total_clicks": request.metrics.total_clicks,
+            "ctr": request.metrics.ctr
+        }
     });
     
     // 90% progress
@@ -600,6 +608,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         date_range: request.date_range,
         created: chrono::Utc::now().format("%Y-%m-%d").to_string(),
         data: final_report.clone(),
+        metrics: request.metrics,
     };
 
     save_report(app.clone(), report)?;
@@ -631,6 +640,28 @@ fn open_report_in_excel(_window: tauri::Window, reportData: serde_json::Value) -
     // Extract report data for CSV content
     let report_data = reportData.get("data")
         .ok_or_else(|| "Invalid report format: missing data field".to_string())?;
+    
+    // Get selected metrics from the report
+    let metrics = reportData.get("metrics")
+        .ok_or_else(|| "Invalid report format: missing metrics".to_string())?;
+    
+    // Create CSV header based on selected metrics
+    let mut header_fields = vec!["Date"];
+    if metrics.get("unique_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Unique Opens");
+    }
+    if metrics.get("total_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Total Opens");
+    }
+    if metrics.get("total_recipients").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Total Recipients");
+    }
+    if metrics.get("total_clicks").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Total Clicks");
+    }
+    if metrics.get("ctr").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("CTR");
+    }
     
     // Extract report metadata for filename
     let advertiser = reportData.get("advertiser")
@@ -678,29 +709,6 @@ fn open_report_in_excel(_window: tauri::Window, reportData: serde_json::Value) -
     );
     
     let file_path = temp_dir.join(&file_name);
-
-    // Get selected metrics
-    let metrics = reportData.get("metrics")
-        .and_then(|m| m.as_object())
-        .ok_or_else(|| "Invalid report format: missing metrics".to_string())?;
-    
-    // Create CSV header based on selected metrics
-    let mut header_fields = vec!["Date"];
-    if metrics.get("unique_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
-        header_fields.push("Unique Opens");
-    }
-    if metrics.get("total_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
-        header_fields.push("Total Opens");
-    }
-    if metrics.get("total_recipients").and_then(|v| v.as_bool()).unwrap_or(false) {
-        header_fields.push("Total Recipients");
-    }
-    if metrics.get("total_clicks").and_then(|v| v.as_bool()).unwrap_or(false) {
-        header_fields.push("Total Clicks");
-    }
-    if metrics.get("ctr").and_then(|v| v.as_bool()).unwrap_or(false) {
-        header_fields.push("CTR");
-    }
     
     // Create CSV content with dynamic headers
     let mut csv = String::new();
@@ -853,6 +861,10 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     let report_data = reportData.get("data")
         .ok_or_else(|| "Invalid report format: missing data field".to_string())?;
     
+    // Get selected metrics from the report
+    let metrics = reportData.get("metrics")
+        .ok_or_else(|| "Invalid report format: missing metrics".to_string())?;
+    
     // Load settings to get the custom download directory
     let settings = load_settings(app.clone())?;
     
@@ -908,11 +920,6 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     );
     
     let file_path = download_dir.join(&file_name);
-    
-    // Get selected metrics
-    let metrics = reportData.get("metrics")
-        .and_then(|m| m.as_object())
-        .ok_or_else(|| "Invalid report format: missing metrics".to_string())?;
     
     // Create CSV header based on selected metrics
     let mut header_fields = vec!["Date"];
