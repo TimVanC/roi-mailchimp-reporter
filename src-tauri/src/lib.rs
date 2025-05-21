@@ -678,32 +678,59 @@ fn open_report_in_excel(_window: tauri::Window, reportData: serde_json::Value) -
     );
     
     let file_path = temp_dir.join(&file_name);
+
+    // Get selected metrics
+    let metrics = reportData.get("metrics")
+        .and_then(|m| m.as_object())
+        .ok_or_else(|| "Invalid report format: missing metrics".to_string())?;
     
-    // Create CSV content with headers
+    // Create CSV header based on selected metrics
+    let mut header_fields = vec!["Date"];
+    if metrics.get("unique_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Unique Opens");
+    }
+    if metrics.get("total_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Total Opens");
+    }
+    if metrics.get("total_recipients").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Total Recipients");
+    }
+    if metrics.get("total_clicks").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Total Clicks");
+    }
+    if metrics.get("ctr").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("CTR");
+    }
+    
+    // Create CSV content with dynamic headers
     let mut csv = String::new();
-    csv.push_str("Date,Unique Opens,Total Opens,Total Recipients,Total Clicks,Ctr\n");
+    csv.push_str(&header_fields.join(","));
+    csv.push('\n');
     
     // The report data is now in the "report_data" field
     if let Some(report_entries) = report_data.get("report_data").and_then(|d| d.as_array()) {
         // Report entries are already sorted by date in the backend
         for entry in report_entries {
-            let date = entry.get("send_date").and_then(|d| d.as_str()).unwrap_or("N/A");
-            let unique_opens = entry.get("unique_opens").and_then(|v| v.as_u64()).unwrap_or(0);
-            let total_opens = entry.get("total_opens").and_then(|v| v.as_u64()).unwrap_or(0);
-            let total_recipients = entry.get("total_recipients").and_then(|v| v.as_u64()).unwrap_or(0);
-            let total_clicks = entry.get("total_clicks").and_then(|v| v.as_u64()).unwrap_or(0);
-            let ctr = entry.get("ctr").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let mut row_fields = vec![entry.get("send_date").and_then(|d| d.as_str()).unwrap_or("N/A").to_string()];
             
-            // Format the CSV line
-            csv.push_str(&format!(
-                "{},{},{},{},{},{:.6}\n",
-                date,
-                unique_opens,
-                total_opens,
-                total_recipients,
-                total_clicks,
-                ctr
-            ));
+            if metrics.get("unique_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
+                row_fields.push(entry.get("unique_opens").and_then(|v| v.as_u64()).unwrap_or(0).to_string());
+            }
+            if metrics.get("total_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
+                row_fields.push(entry.get("total_opens").and_then(|v| v.as_u64()).unwrap_or(0).to_string());
+            }
+            if metrics.get("total_recipients").and_then(|v| v.as_bool()).unwrap_or(false) {
+                row_fields.push(entry.get("total_recipients").and_then(|v| v.as_u64()).unwrap_or(0).to_string());
+            }
+            if metrics.get("total_clicks").and_then(|v| v.as_bool()).unwrap_or(false) {
+                row_fields.push(entry.get("total_clicks").and_then(|v| v.as_u64()).unwrap_or(0).to_string());
+            }
+            if metrics.get("ctr").and_then(|v| v.as_bool()).unwrap_or(false) {
+                row_fields.push(format!("{:.6}", entry.get("ctr").and_then(|v| v.as_f64()).unwrap_or(0.0)));
+            }
+            
+            csv.push_str(&row_fields.join(","));
+            csv.push('\n');
         }
     } else {
         // If no report data found, create an empty report with headers only
@@ -829,18 +856,11 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     // Load settings to get the custom download directory
     let settings = load_settings(app.clone())?;
     
-    // Debug log the download directory
-    println!("Using download directory from settings: '{}'", settings.download_directory);
-    
     // Use the download directory from settings
     let download_dir = std::path::Path::new(&settings.download_directory);
     
-    // Debug log the download directory exists check
-    println!("Does download directory exist? {}", download_dir.exists());
-    
     // Create the directory if it doesn't exist
     if !download_dir.exists() {
-        println!("Download directory doesn't exist, creating it");
         std::fs::create_dir_all(download_dir)
             .map_err(|e| format!("Failed to create download directory: {}", e))?;
     }
@@ -889,51 +909,67 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     
     let file_path = download_dir.join(&file_name);
     
-    // Debug log the file path
-    println!("Writing CSV to: '{}'", file_path.display());
+    // Get selected metrics
+    let metrics = reportData.get("metrics")
+        .and_then(|m| m.as_object())
+        .ok_or_else(|| "Invalid report format: missing metrics".to_string())?;
     
-    // Create CSV content with headers
+    // Create CSV header based on selected metrics
+    let mut header_fields = vec!["Date"];
+    if metrics.get("unique_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Unique Opens");
+    }
+    if metrics.get("total_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Total Opens");
+    }
+    if metrics.get("total_recipients").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Total Recipients");
+    }
+    if metrics.get("total_clicks").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("Total Clicks");
+    }
+    if metrics.get("ctr").and_then(|v| v.as_bool()).unwrap_or(false) {
+        header_fields.push("CTR");
+    }
+    
+    // Create CSV content with dynamic headers
     let mut csv = String::new();
-    csv.push_str("Date,Unique Opens,Total Opens,Total Recipients,Total Clicks,Ctr\n");
+    csv.push_str(&header_fields.join(","));
+    csv.push('\n');
     
     if let Some(report_entries) = report_data.get("report_data").and_then(|d| d.as_array()) {
         for entry in report_entries {
-            let date = entry.get("send_date").and_then(|d| d.as_str()).unwrap_or("N/A");
-            let unique_opens = entry.get("unique_opens").and_then(|v| v.as_u64()).unwrap_or(0);
-            let total_opens = entry.get("total_opens").and_then(|v| v.as_u64()).unwrap_or(0);
-            let total_recipients = entry.get("total_recipients").and_then(|v| v.as_u64()).unwrap_or(0);
-            let total_clicks = entry.get("total_clicks").and_then(|v| v.as_u64()).unwrap_or(0);
-            let ctr = entry.get("ctr").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let mut row_fields = vec![entry.get("send_date").and_then(|d| d.as_str()).unwrap_or("N/A").to_string()];
             
-            // Format the CSV line
-            csv.push_str(&format!(
-                "{},{},{},{},{},{:.6}\n",
-                date,
-                unique_opens,
-                total_opens,
-                total_recipients,
-                total_clicks,
-                ctr
-            ));
+            if metrics.get("unique_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
+                row_fields.push(entry.get("unique_opens").and_then(|v| v.as_u64()).unwrap_or(0).to_string());
+            }
+            if metrics.get("total_opens").and_then(|v| v.as_bool()).unwrap_or(false) {
+                row_fields.push(entry.get("total_opens").and_then(|v| v.as_u64()).unwrap_or(0).to_string());
+            }
+            if metrics.get("total_recipients").and_then(|v| v.as_bool()).unwrap_or(false) {
+                row_fields.push(entry.get("total_recipients").and_then(|v| v.as_u64()).unwrap_or(0).to_string());
+            }
+            if metrics.get("total_clicks").and_then(|v| v.as_bool()).unwrap_or(false) {
+                row_fields.push(entry.get("total_clicks").and_then(|v| v.as_u64()).unwrap_or(0).to_string());
+            }
+            if metrics.get("ctr").and_then(|v| v.as_bool()).unwrap_or(false) {
+                row_fields.push(format!("{:.6}", entry.get("ctr").and_then(|v| v.as_f64()).unwrap_or(0.0)));
+            }
+            
+            csv.push_str(&row_fields.join(","));
+            csv.push('\n');
         }
     } else {
         csv.push_str("No campaign data found\n");
     }
     
     // Write the CSV content to the file
-    match std::fs::write(&file_path, csv.as_bytes()) {
-        Ok(_) => println!("Successfully wrote CSV file to {}", file_path.display()),
-        Err(e) => {
-            let error_msg = format!("Failed to write CSV: {}", e);
-            println!("{}", error_msg);
-            return Err(error_msg);
-        }
-    };
+    std::fs::write(&file_path, csv.as_bytes())
+        .map_err(|e| format!("Failed to write CSV: {}", e))?;
     
     // Return the file path as a string
-    let path_str = file_path.to_string_lossy().to_string();
-    println!("Returning file path: '{}'", path_str);
-    Ok(path_str)
+    Ok(file_path.to_string_lossy().to_string())
 }
 
 #[tauri::command]
