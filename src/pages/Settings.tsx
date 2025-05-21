@@ -305,8 +305,8 @@ const Settings = () => {
   // Calculate total pages for pagination
   const totalPages = Math.max(1, Math.ceil(filteredAdvertisers.length / itemsPerPage));
   
-  // Handle pagination page change
-  const handlePageChange = (event: React.ChangeEvent<unknown>, page: number) => {
+  // Handle pagination page changes
+  const handlePageChange = (_event: unknown, page: number) => {
     setCurrentPage(page);
   };
   

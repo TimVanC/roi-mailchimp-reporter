@@ -44,6 +44,7 @@ import type { NewsletterType, FormData } from '@/types';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { invoke } from '@tauri-apps/api/core';
 import { UnlistenFn, listen } from '@tauri-apps/api/event';
+import { useReportStore } from '@/store/reportStore';
 
 /**
  * Snackbar state interface for notifications
@@ -116,29 +117,59 @@ const RunReport = () => {
   const [selectedAdvertiser, setSelectedAdvertiser] = useState<string>('');
   const [selectedNewsletterType, setSelectedNewsletterType] = useState<string>('');
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
+  const [trackingUrls, setTrackingUrls] = useState<string[]>(['']);
   
-  // Comprehensive progress tracking state
-  const [progress, setProgress] = useState<ProgressState>({
-    stage: '',
-    percentage: 0,
-    message: '',
-    timeRemaining: null,
-    currentCampaign: 0,
-    totalCampaigns: 0,
+  // Get state and actions from the global store
+  const {
+    isGenerating,
+    formData: savedFormData,
+    progress,
+    setIsGenerating,
+    setFormData,
+    setProgress,
+    resetProgress
+  } = useReportStore();
+
+  // React Hook Form setup with persisted data
+  const { control, handleSubmit, watch, reset, formState: { errors } } = useForm<FormData>({
+    defaultValues: savedFormData || {
+      newsletterType: 'AM',
+      advertiser: '',
+      trackingUrls: [''],
+      dateRange: {
+        startDate: dayjs().format('YYYY-MM-DD'),
+        endDate: dayjs().format('YYYY-MM-DD')
+      },
+      metrics: {
+        uniqueOpens: false,
+        totalOpens: false,
+        totalRecipients: false,
+        totalClicks: false,
+        ctr: false
+      }
+    }
   });
 
-  // Store cleanup function for progress event listener
-  const [progressUnlisten, setProgressUnlisten] = useState<UnlistenFn | null>(null);
+  // Load saved form data when component mounts
+  useEffect(() => {
+    if (savedFormData) {
+      reset(savedFormData);
+      if (savedFormData.trackingUrls?.length > 0) {
+        setTrackingUrls(savedFormData.trackingUrls);
+      }
+    }
+  }, [savedFormData, reset]);
 
-  /**
-   * Component initialization effect
-   * Sets up:
-   * - Initial settings load
-   * - Progress event listener
-   * - Settings auto-refresh
-   * - Cleanup on unmount
-   */
+  // Save form data on field changes
+  const onFieldChange = (name: string, value: any) => {
+    const currentFormData = watch();
+    setFormData({
+      ...currentFormData,
+      [name]: value
+    } as FormData);
+  };
+
+  // Component initialization effect
   useEffect(() => {
     console.log('RunReport component mounted, loading settings...');
     loadSettings();
@@ -153,9 +184,6 @@ const RunReport = () => {
     // Cleanup function
     return () => {
       clearInterval(intervalId);
-      if (progressUnlisten) {
-        progressUnlisten();
-      }
     };
   }, []);
 
@@ -171,16 +199,16 @@ const RunReport = () => {
     try {
       const unlisten = await listen<ProgressUpdate>('report-progress', (event) => {
         const update = event.payload;
-        console.log('Progress update received:', update); // Debug log
+        console.log('Progress update received:', update);
         
-        setProgress(prev => ({
+        setProgress({
           stage: update.stage,
           percentage: update.progress,
           message: update.message,
           timeRemaining: typeof update.time_remaining === 'number' ? update.time_remaining : null,
-          currentCampaign: prev.currentCampaign,
-          totalCampaigns: prev.totalCampaigns
-        }));
+          currentCampaign: progress.currentCampaign,
+          totalCampaigns: progress.totalCampaigns
+        });
       });
       return unlisten;
     } catch (error) {
@@ -351,30 +379,6 @@ const RunReport = () => {
     }
   });
 
-  // React Hook Form setup
-  // Using default values for a new report
-  const { control, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
-    defaultValues: {
-      newsletterType: 'AM',
-      advertiser: '',
-      trackingUrls: [''],
-      dateRange: {
-        startDate: dayjs().format('YYYY-MM-DD'),
-        endDate: dayjs().format('YYYY-MM-DD')
-      },
-      metrics: {
-        uniqueOpens: false,
-        totalOpens: false,
-        totalRecipients: false,
-        totalClicks: false,
-        ctr: false
-      }
-    }
-  });
-
-  // State for tracking URLs - separate from form state for easier manipulation
-  const [trackingUrls, setTrackingUrls] = useState<string[]>(['']);
-
   // Add a new tracking URL field
   const handleAddUrl = () => {
     setTrackingUrls([...trackingUrls, '']);
@@ -390,15 +394,11 @@ const RunReport = () => {
 
   // Form submission handler - generate report
   const onSubmit = async (data: FormData) => {
+    // Save the complete form data
+    setFormData(data);
+    
     // Reset progress state
-    setProgress({
-      stage: '',
-      percentage: 0,
-      message: '',
-      timeRemaining: null,
-      currentCampaign: 0,
-      totalCampaigns: 0,
-    });
+    resetProgress();
     
     // Validate at least one metric is selected
     const hasMetric = Object.values(data.metrics).some(value => value);
@@ -430,7 +430,6 @@ const RunReport = () => {
       }
 
       // Generate the report by calling the Rust backend
-      // Converting from camelCase (JS) to snake_case (Rust)
       const response = await invoke<GenerateReportResponse>('generate_report', {
         request: {
           newsletter_type: data.newsletterType,
@@ -452,7 +451,6 @@ const RunReport = () => {
 
       // Process progress updates from the response
       if (response.progress_updates && response.progress_updates.length > 0) {
-        // Get the last progress update
         const lastUpdate = response.progress_updates[response.progress_updates.length - 1];
         
         // Parse campaign info from message if available
@@ -485,18 +483,15 @@ const RunReport = () => {
       });
 
       if (response.success) {
-        // Report generated successfully
         console.log('Report data:', response.data);
       }
     } catch (error) {
-      // Handle any unexpected errors
       setSnackbar({
         open: true,
         message: `Error generating report: ${error}`,
         severity: 'error',
       });
     } finally {
-      // Reset generating state when done, whether successful or not
       setIsGenerating(false);
     }
   };
@@ -516,7 +511,15 @@ const RunReport = () => {
                 name="newsletterType"
                 control={control}
                 render={({ field }) => (
-                  <RadioGroup row {...field} className="gap-3">
+                  <RadioGroup 
+                    row 
+                    {...field} 
+                    className="gap-3"
+                    onChange={(e) => {
+                      field.onChange(e);
+                      onFieldChange('newsletterType', e.target.value);
+                    }}
+                  >
                     {NEWSLETTER_TYPES.map((type) => (
                       <FormControlLabel
                         key={type}
@@ -559,7 +562,10 @@ const RunReport = () => {
                     renderInput={(params) => (
                       <TextField {...params} label="Advertiser" size="small" />
                     )}
-                    onChange={(_, value) => field.onChange(value)}
+                    onChange={(_, value) => {
+                      field.onChange(value);
+                      onFieldChange('advertiser', value);
+                    }}
                     size="small"
                   />
                 )}
@@ -577,6 +583,12 @@ const RunReport = () => {
                           fullWidth
                           size="small"
                           label="Advertisement URL or Keyword"
+                          onChange={(e) => {
+                            field.onChange(e);
+                            const newUrls = [...trackingUrls];
+                            newUrls[index] = e.target.value;
+                            onFieldChange('trackingUrls', newUrls);
+                          }}
                           sx={{
                             '& .MuiOutlinedInput-root': {
                               '&.Mui-focused': {
@@ -596,7 +608,11 @@ const RunReport = () => {
                     {index > 0 && (
                       <IconButton
                         size="small"
-                        onClick={() => handleRemoveUrl(index)}
+                        onClick={() => {
+                          handleRemoveUrl(index);
+                          const newUrls = trackingUrls.filter((_, i) => i !== index);
+                          onFieldChange('trackingUrls', newUrls);
+                        }}
                         sx={{
                           color: '#951521'
                         }}
@@ -609,7 +625,10 @@ const RunReport = () => {
                 {/* Add URL button */}
                 <Button
                   startIcon={<AddIcon />}
-                  onClick={handleAddUrl}
+                  onClick={() => {
+                    handleAddUrl();
+                    onFieldChange('trackingUrls', [...trackingUrls, '']);
+                  }}
                   variant="outlined"
                   size="small"
                   sx={{
@@ -642,7 +661,14 @@ const RunReport = () => {
                   <DatePicker
                     label="Start Date"
                     value={dayjs(field.value)}
-                    onChange={(date) => field.onChange(date?.format('YYYY-MM-DD'))}
+                    onChange={(date) => {
+                      const dateStr = date?.format('YYYY-MM-DD');
+                      field.onChange(dateStr);
+                      onFieldChange('dateRange', {
+                        ...watch('dateRange'),
+                        startDate: dateStr
+                      });
+                    }}
                     slotProps={{ 
                       textField: { 
                         size: 'small',
@@ -671,7 +697,14 @@ const RunReport = () => {
                   <DatePicker
                     label="End Date"
                     value={dayjs(field.value)}
-                    onChange={(date) => field.onChange(date?.format('YYYY-MM-DD'))}
+                    onChange={(date) => {
+                      const dateStr = date?.format('YYYY-MM-DD');
+                      field.onChange(dateStr);
+                      onFieldChange('dateRange', {
+                        ...watch('dateRange'),
+                        endDate: dateStr
+                      });
+                    }}
                     slotProps={{ 
                       textField: { 
                         size: 'small',
@@ -712,7 +745,14 @@ const RunReport = () => {
                         <Checkbox
                           {...field}
                           size="small"
-                          value={field.value}
+                          checked={field.value}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            onFieldChange('metrics', {
+                              ...watch('metrics'),
+                              uniqueOpens: e.target.checked
+                            });
+                          }}
                           sx={{
                             '&.Mui-checked': {
                               color: '#159581',
@@ -735,7 +775,14 @@ const RunReport = () => {
                         <Checkbox
                           {...field}
                           size="small"
-                          value={field.value}
+                          checked={field.value}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            onFieldChange('metrics', {
+                              ...watch('metrics'),
+                              totalOpens: e.target.checked
+                            });
+                          }}
                           sx={{
                             '&.Mui-checked': {
                               color: '#159581',
@@ -757,7 +804,14 @@ const RunReport = () => {
                         <Checkbox
                           {...field}
                           size="small"
-                          value={field.value}
+                          checked={field.value}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            onFieldChange('metrics', {
+                              ...watch('metrics'),
+                              totalRecipients: e.target.checked
+                            });
+                          }}
                           sx={{
                             '&.Mui-checked': {
                               color: '#159581',
@@ -779,7 +833,14 @@ const RunReport = () => {
                         <Checkbox
                           {...field}
                           size="small"
-                          value={field.value}
+                          checked={field.value}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            onFieldChange('metrics', {
+                              ...watch('metrics'),
+                              totalClicks: e.target.checked
+                            });
+                          }}
                           sx={{
                             '&.Mui-checked': {
                               color: '#159581',
@@ -801,7 +862,14 @@ const RunReport = () => {
                         <Checkbox
                           {...field}
                           size="small"
-                          value={field.value}
+                          checked={field.value}
+                          onChange={(e) => {
+                            field.onChange(e);
+                            onFieldChange('metrics', {
+                              ...watch('metrics'),
+                              ctr: e.target.checked
+                            });
+                          }}
                           sx={{
                             '&.Mui-checked': {
                               color: '#159581',

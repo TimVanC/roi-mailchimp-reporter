@@ -40,7 +40,6 @@ import {
   TableView as TableViewIcon,
 } from '@mui/icons-material';
 import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-shell';
 import type { NewsletterType } from '@/types';
 
 /**

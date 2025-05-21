@@ -14,6 +14,7 @@ import { ThemeProvider, createTheme } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import roiLogo from './assets/ROI-white-logo.png';
+import { useReportStore } from './store/reportStore';
 
 // Import our page components that represent the main sections of the app
 import RunReport from './pages/RunReport';  // Report generation interface
@@ -55,6 +56,7 @@ const theme = createTheme({
  */
 const Navigation = () => {
   const location = useLocation();
+  const isGenerating = useReportStore(state => state.isGenerating);
   
   return (
     <nav className="flex space-x-6">
@@ -64,9 +66,12 @@ const Navigation = () => {
           location.pathname === '/' 
             ? 'bg-[#e5e9f2] text-gray-900' // Active state styling
             : 'text-[#e5e9f2] hover:text-white' // Inactive with hover effect
-        }`}
+        } ${isGenerating ? 'relative' : ''}`}
       >
         Run Report
+        {isGenerating && (
+          <span className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+        )}
       </Link>
       <Link 
         to="/reports" 
