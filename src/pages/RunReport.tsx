@@ -27,8 +27,6 @@ import {
   Checkbox,
   Button,
   IconButton,
-  FormControl,
-  FormLabel,
   FormGroup,
   FormHelperText,
   Autocomplete,
@@ -81,7 +79,20 @@ interface ProgressUpdate {
   stage: string;
   progress: number;
   message: string;
+  time_remaining: number | null;
+}
+
+/**
+ * Progress state interface
+ * Contains all necessary information about the progress of report generation
+ */
+interface ProgressState {
+  stage: string;
+  percentage: number;
+  message: string;
   timeRemaining: number | null;
+  currentCampaign: number;
+  totalCampaigns: number;
 }
 
 /**
@@ -108,14 +119,7 @@ const RunReport = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   
   // Comprehensive progress tracking state
-  const [progress, setProgress] = useState<{
-    stage: string;
-    percentage: number;
-    message: string;
-    timeRemaining: number | null;
-    currentCampaign: number;
-    totalCampaigns: number;
-  }>({
+  const [progress, setProgress] = useState<ProgressState>({
     stage: '',
     percentage: 0,
     message: '',
@@ -165,39 +169,20 @@ const RunReport = () => {
    */
   const setupProgressListener = async () => {
     try {
-      if (progressUnlisten) {
-        await progressUnlisten();
-      }
-      
-      const unlisten = await listen("report-progress", (event) => {
-        console.log("Received progress update:", event);
+      const unlisten = await listen<ProgressUpdate>('report-progress', (event) => {
+        const update = event.payload;
+        console.log('Progress update received:', update); // Debug log
         
-        const update = event.payload as ProgressUpdate;
-        let currentCampaign = 0;
-        let totalCampaigns = 0;
-        
-        // Extract campaign progress from message
-        const campaignRegex = /Processing campaign (\d+) of (\d+)/;
-        const match = update.message.match(campaignRegex);
-        
-        if (match && match.length >= 3) {
-          currentCampaign = parseInt(match[1], 10);
-          totalCampaigns = parseInt(match[2], 10);
-        }
-        
-        setProgress({
+        setProgress(prev => ({
           stage: update.stage,
           percentage: update.progress,
           message: update.message,
-          timeRemaining: update.timeRemaining,
-          currentCampaign,
-          totalCampaigns,
-        });
+          timeRemaining: typeof update.time_remaining === 'number' ? update.time_remaining : null,
+          currentCampaign: prev.currentCampaign,
+          totalCampaigns: prev.totalCampaigns
+        }));
       });
-      
-      setProgressUnlisten(() => unlisten);
-      console.log("Progress event listener registered");
-      
+      return unlisten;
     } catch (error) {
       console.error("Failed to set up progress listener:", error);
     }
@@ -208,14 +193,23 @@ const RunReport = () => {
    * Converts seconds into minutes:seconds format when appropriate
    */
   const formatTimeRemaining = (seconds: number | null): string => {
-    if (seconds === null) return '';
+    if (seconds === null || seconds === undefined) {
+      return 'Calculating time remaining...';
+    }
+    
+    if (seconds === 0) {
+      return 'Almost done...';
+    }
     
     if (seconds < 60) {
-      return `${Math.round(seconds)} seconds remaining`;
+      return `About ${Math.ceil(seconds)} seconds remaining`;
     } else {
       const minutes = Math.floor(seconds / 60);
       const remainingSeconds = Math.round(seconds % 60);
-      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')} minutes remaining`;
+      if (minutes === 1) {
+        return `About 1 minute ${remainingSeconds > 0 ? `and ${remainingSeconds} seconds` : ''} remaining`;
+      }
+      return `About ${minutes} minutes ${remainingSeconds > 0 ? `and ${remainingSeconds} seconds` : ''} remaining`;
     }
   };
 
@@ -477,7 +471,7 @@ const RunReport = () => {
           stage: lastUpdate.stage,
           percentage: lastUpdate.progress,
           message: lastUpdate.message,
-          timeRemaining: lastUpdate.timeRemaining,
+          timeRemaining: lastUpdate.time_remaining,
           currentCampaign,
           totalCampaigns,
         });
@@ -861,9 +855,7 @@ const RunReport = () => {
                   fontStyle: 'italic' 
                 }}
               >
-                {progress.stage === 'ProcessingCampaigns' 
-                  ? (progress.timeRemaining ? formatTimeRemaining(progress.timeRemaining) : 'Calculating time remaining...') 
-                  : ''}
+                {formatTimeRemaining(progress.timeRemaining)}
               </Typography>
             </Box>
           )}

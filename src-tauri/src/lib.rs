@@ -5,6 +5,7 @@ use reqwest;
 use std::io::Write;
 use std::fs::File;
 use tauri::Emitter;
+use base64;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Settings {
@@ -29,7 +30,7 @@ struct DateRange {
     end_date: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct Metrics {
     unique_opens: bool,
     total_opens: bool,
@@ -232,8 +233,51 @@ fn load_reports(app: tauri::AppHandle) -> Result<Vec<SavedReport>, String> {
     let reports_str = fs::read_to_string(&reports_path)
         .map_err(|e| format!("Failed to read reports: {}", e))?;
     
-    serde_json::from_str(&reports_str)
-        .map_err(|e| format!("Failed to parse reports: {}", e))
+    println!("Loading reports from: {:?}", reports_path);
+    
+    // First try to parse as raw JSON to handle missing fields
+    let reports_json: Vec<serde_json::Value> = serde_json::from_str(&reports_str)
+        .map_err(|e| format!("Failed to parse reports JSON: {}", e))?;
+    
+    // Convert each report with proper field handling
+    let mut converted_reports = Vec::new();
+    for report_json in reports_json {
+        let default_metrics = Metrics {
+            unique_opens: true,
+            total_opens: true,
+            total_recipients: true,
+            total_clicks: true,
+            ctr: true,
+        };
+
+        let report = SavedReport {
+            id: report_json.get("id").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            name: report_json.get("name").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            advertiser: report_json.get("advertiser").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            report_type: report_json.get("report_type").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            date_range: match report_json.get("date_range") {
+                Some(dr) => serde_json::from_value(dr.clone())
+                    .unwrap_or(DateRange {
+                        start_date: "".to_string(),
+                        end_date: "".to_string(),
+                    }),
+                None => DateRange {
+                    start_date: "".to_string(),
+                    end_date: "".to_string(),
+                },
+            },
+            created: report_json.get("created").and_then(|v| v.as_str()).unwrap_or("").to_string(),
+            data: report_json.get("data").cloned().unwrap_or(serde_json::json!({})),
+            metrics: report_json.get("metrics")
+                .and_then(|m| serde_json::from_value(m.clone()).ok())
+                .unwrap_or(default_metrics),
+        };
+        
+        converted_reports.push(report);
+    }
+    
+    println!("Successfully loaded and converted {} reports", converted_reports.len());
+    Ok(converted_reports)
 }
 
 #[tauri::command]
@@ -340,7 +384,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     let campaigns_response = client
         .get(&campaigns_url)
-        .header("Authorization", format!("Bearer {}", settings.mailchimp_api_key))
+        .header("Authorization", format!("Basic {}", base64::encode(format!("anystring:{}", settings.mailchimp_api_key))))
         .send()
         .await
         .map_err(|e| format!("Failed to fetch campaigns: {}", e))?;
@@ -414,7 +458,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         stage: "ProcessingCampaigns".to_string(),
         progress: 40,
         message: format!("Found {} matching campaigns. Processing details...", filtered_campaigns.len()),
-        time_remaining: None,
+        time_remaining: Some((filtered_campaigns.len() as f64 * 0.75) as u64), // Estimate 0.75 seconds per campaign
     };
     
     // Store and emit update
@@ -437,21 +481,19 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         // Calculate current progress (40-80% is for campaign processing)
         let current_progress = 40 + ((index as f64) * campaign_progress_increment) as u8;
         
-        // Calculate time remaining based on progress
+        // Calculate time remaining based on actual processing rate
         let elapsed = start_time.elapsed().as_secs_f64();
-        
-        // Only estimate time after we've processed at least one campaign
-        let time_remaining = if index > 0 && current_progress > 40 {
+        let time_remaining = if index > 0 {
             // Calculate average time per campaign
             let avg_time_per_campaign = elapsed / (index as f64);
-            // Estimate remaining time
+            // Calculate remaining campaigns
             let remaining_campaigns = filtered_campaigns.len() - index;
-            let time_for_campaigns = avg_time_per_campaign * (remaining_campaigns as f64);
-            // Add time for final processing (approx 20% of total)
-            let remaining_secs = time_for_campaigns * 1.2;
-            Some(remaining_secs as u64)
+            // Estimate remaining time plus 20% buffer for final processing
+            let remaining_secs = (avg_time_per_campaign * (remaining_campaigns as f64)) * 1.2;
+            Some(remaining_secs.ceil() as u64)
         } else {
-            None
+            // Initial estimate for first campaign
+            Some((filtered_campaigns.len() as f64 * 0.75) as u64)
         };
         
         // Extract campaign ID and metrics
@@ -470,7 +512,14 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         let campaign_update = ProgressUpdate {
             stage: "ProcessingCampaigns".to_string(),
             progress: current_progress,
-            message: format!("Processing campaign {} of {} ({})", index + 1, filtered_campaigns.len(), send_time),
+            message: format!("Processing campaign {} of {} ({})", 
+                index + 1, 
+                filtered_campaigns.len(),
+                campaign.get("settings")
+                    .and_then(|s| s.get("title"))
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("Untitled")
+            ),
             time_remaining,
         };
         
@@ -506,7 +555,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         // Get click details
         let click_response = client
             .get(&click_url)
-            .header("Authorization", format!("Bearer {}", settings.mailchimp_api_key))
+            .header("Authorization", format!("Basic {}", base64::encode(format!("anystring:{}", settings.mailchimp_api_key))))
             .send()
             .await;
         
@@ -576,21 +625,18 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     let final_report = serde_json::json!({
         "campaigns": filtered_campaigns,
         "report_data": report_data,
-        "metrics": {
-            "unique_opens": request.metrics.unique_opens,
-            "total_opens": request.metrics.total_opens,
-            "total_recipients": request.metrics.total_recipients,
-            "total_clicks": request.metrics.total_clicks,
-            "ctr": request.metrics.ctr
-        }
+        "metrics": request.metrics
     });
-    
+
+    println!("Final report metrics: {:?}", request.metrics);
+    println!("Final report structure: {:?}", final_report);
+
     // 90% progress
     let saving_update = ProgressUpdate {
         stage: "SavingReport".to_string(),
         progress: 90,
         message: "Finalizing and saving report...".to_string(),
-        time_remaining: Some(5), // Estimate 5 seconds for saving
+        time_remaining: Some(5),
     };
     
     // Store and emit update
@@ -598,19 +644,20 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     if let Err(e) = app.emit("report-progress", saving_update) {
         println!("Failed to emit progress update: {}", e);
     }
-    
-    // Save the report
+
+    // Save the report with metrics
     let report = SavedReport {
         id: format!("report-{}", chrono::Utc::now().timestamp_millis()),
         name: format!("{}-{}-{}", request.advertiser, request.newsletter_type, chrono::Utc::now().format("%Y-%m-%d")),
         advertiser: request.advertiser,
         report_type: request.newsletter_type,
-        date_range: request.date_range,
+        date_range: request.date_range.clone(),
         created: chrono::Utc::now().format("%Y-%m-%d").to_string(),
         data: final_report.clone(),
-        metrics: request.metrics,
+        metrics: request.metrics.clone(),
     };
 
+    println!("About to save report with metrics: {:?}", report.metrics);
     save_report(app.clone(), report)?;
 
     // 100% progress
