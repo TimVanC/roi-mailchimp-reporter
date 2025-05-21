@@ -641,8 +641,8 @@ fn open_report_in_excel(_window: tauri::Window, reportData: serde_json::Value) -
     let report_data = reportData.get("data")
         .ok_or_else(|| "Invalid report format: missing data field".to_string())?;
     
-    // Get selected metrics from the report
-    let metrics = reportData.get("metrics")
+    // Get selected metrics from the report data
+    let metrics = report_data.get("metrics")
         .ok_or_else(|| "Invalid report format: missing metrics".to_string())?;
     
     // Create CSV header based on selected metrics
@@ -861,8 +861,8 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     let report_data = reportData.get("data")
         .ok_or_else(|| "Invalid report format: missing data field".to_string())?;
     
-    // Get selected metrics from the report
-    let metrics = reportData.get("metrics")
+    // Get selected metrics from the report data
+    let metrics = report_data.get("metrics")
         .ok_or_else(|| "Invalid report format: missing metrics".to_string())?;
     
     // Load settings to get the custom download directory
