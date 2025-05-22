@@ -175,16 +175,19 @@ const RunReport = () => {
     loadSettings();
     setupProgressListener();
     
-    // Auto-refresh settings every 3 seconds
-    const intervalId = setInterval(() => {
-      console.log('Reloading settings in RunReport...');
-      loadSettings();
-    }, 3000);
-    
-    // Cleanup function
-    return () => {
-      clearInterval(intervalId);
+    // Listen for settings changes
+    const setupSettingsListener = async () => {
+      try {
+        await listen<void>('settings-updated', () => {
+          console.log('Settings updated, reloading...');
+          loadSettings();
+        });
+      } catch (error) {
+        console.error('Failed to set up settings listener:', error);
+      }
     };
+    
+    setupSettingsListener();
   }, []);
 
   /**
@@ -394,24 +397,24 @@ const RunReport = () => {
 
   // Form submission handler - generate report
   const onSubmit = async (data: FormData) => {
-    // Save the complete form data
-    setFormData(data);
-    
-    // Reset progress state
-    resetProgress();
-    
-    // Validate at least one metric is selected
-    const hasMetric = Object.values(data.metrics).some(value => value);
-    if (!hasMetric) {
-      setSnackbar({
-        open: true,
-        message: 'Please select at least one metric',
-        severity: 'error',
-      });
-      return;
-    }
-
     try {
+      // Save the complete form data
+      setFormData(data);
+      
+      // Reset progress state
+      resetProgress();
+      
+      // Validate at least one metric is selected
+      const hasMetric = Object.values(data.metrics).some(value => value);
+      if (!hasMetric) {
+        setSnackbar({
+          open: true,
+          message: 'Please select at least one metric',
+          severity: 'error',
+        });
+        return;
+      }
+
       // Set generating state to true to show loading indicator
       setIsGenerating(true);
       
@@ -449,69 +452,163 @@ const RunReport = () => {
         }
       });
 
-      // Process progress updates from the response
-      if (response.progress_updates && response.progress_updates.length > 0) {
-        const lastUpdate = response.progress_updates[response.progress_updates.length - 1];
-        
-        // Parse campaign info from message if available
-        let currentCampaign = 0;
-        let totalCampaigns = 0;
-        
-        const campaignRegex = /Processing campaign (\d+) of (\d+)/;
-        const match = lastUpdate.message.match(campaignRegex);
-        
-        if (match && match.length >= 3) {
-          currentCampaign = parseInt(match[1], 10);
-          totalCampaigns = parseInt(match[2], 10);
-        }
-        
-        setProgress({
-          stage: lastUpdate.stage,
-          percentage: lastUpdate.progress,
-          message: lastUpdate.message,
-          timeRemaining: lastUpdate.time_remaining,
-          currentCampaign,
-          totalCampaigns,
-        });
-      }
+      // Debug logging
+      console.log('Full response:', JSON.stringify(response, null, 2));
+      console.log('Response data type:', typeof response.data);
+      console.log('Response data structure:', JSON.stringify(response.data, null, 2));
 
-      // Show success or error message
-      setSnackbar({
-        open: true,
-        message: response.success ? 'Report generated successfully!' : `Failed to generate report: ${response.message}`,
-        severity: response.success ? 'success' : 'error',
-      });
+      if (response.success) {
+        // Helper function to check if the data contains any campaign metrics
+        const hasValidCampaignData = (data: any): boolean => {
+          // Debug logging
+          console.log('Checking data:', JSON.stringify(data, null, 2));
+          
+          // Check if data exists and is an object
+          if (!data || typeof data !== 'object') {
+            console.log('Data is null or not an object');
+            return false;
+          }
 
-      if (response.success && response.data) {
-        console.log('Report data:', response.data);
-        
-        // Ensure the report data has all required fields
-        const report = {
-          ...response.data,
-          advertiser: data.advertiser,
-          report_type: data.newsletterType,
-          date_range: {
-            start_date: data.dateRange.startDate,
-            end_date: data.dateRange.endDate,
-          },
-          created: new Date().toISOString(),
+          // If it's an array, check each item
+          if (Array.isArray(data)) {
+            console.log('Data is an array of length:', data.length);
+            if (data.length === 0) return false;
+            return data.some(item => hasValidCampaignData(item));
+          }
+
+          // Check for campaign metrics
+          const hasMetrics = 
+            (typeof data.unique_opens === 'number' && data.unique_opens > 0) ||
+            (typeof data.total_opens === 'number' && data.total_opens > 0) ||
+            (typeof data.total_recipients === 'number' && data.total_recipients > 0) ||
+            (typeof data.total_clicks === 'number' && data.total_clicks > 0);
+
+          console.log('Metrics check:', {
+            unique_opens: data.unique_opens,
+            total_opens: data.total_opens,
+            total_recipients: data.total_recipients,
+            total_clicks: data.total_clicks,
+            hasMetrics
+          });
+
+          // If this object has metrics, check if they're all zero
+          if (hasMetrics) {
+            const allZero = 
+              (!data.unique_opens || data.unique_opens === 0) &&
+              (!data.total_opens || data.total_opens === 0) &&
+              (!data.total_recipients || data.total_recipients === 0) &&
+              (!data.total_clicks || data.total_clicks === 0);
+            
+            console.log('All metrics zero check:', allZero);
+            return !allZero;
+          }
+
+          // If no metrics found at this level, check nested objects
+          const nestedCheck = Object.entries(data).some(([key, value]) => {
+            console.log('Checking nested object key:', key);
+            return typeof value === 'object' && value !== null && hasValidCampaignData(value);
+          });
+          console.log('Nested objects check result:', nestedCheck);
+          return nestedCheck;
         };
 
-        // Emit report-generated event with the complete report data
+        // Check if the response has any valid campaign data
+        const hasValidData = hasValidCampaignData(response.data);
+        console.log('Final validation result:', hasValidData);
+
+        if (!hasValidData) {
+          setSnackbar({
+            open: true,
+            message: `No matching campaign data found. This could mean:
+              • No campaigns used these tracking URLs
+              • No campaigns were sent in this date range
+              • The tracking URLs might be misspelled
+              • The advertiser name might be incorrect
+              
+              Try adjusting your search criteria and ensure tracking URLs match exactly.`,
+            severity: 'warning',
+          });
+          setIsGenerating(false);
+          return;
+        }
+
+        // First emit the report-generated event with the new report data
         await invoke('emit_event', {
           event: 'report-generated',
           payload: {
-            report
+            report: response.data
           }
         });
+
+        // Wait a short moment to ensure the event has been processed
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Show success message
+        setSnackbar({
+          open: true,
+          message: 'Report generated successfully!',
+          severity: 'success',
+        });
+
+        // Reset form and state after successful generation
+        reset();
+        setTrackingUrls(['']);
+        setFormData(null);
+        resetProgress();
+        
+        // Finally, set generating state to false
+        setIsGenerating(false);
+      } else {
+        // Check if the error message indicates no data found
+        if (response.message?.toLowerCase().includes('no data') || 
+            response.message?.toLowerCase().includes('no results') ||
+            response.message?.toLowerCase().includes('no campaigns')) {
+          setSnackbar({
+            open: true,
+            message: `No matching campaign data found. This could mean:
+              • No campaigns used these tracking URLs
+              • No campaigns were sent in this date range
+              • The tracking URLs might be misspelled
+              • The advertiser name might be incorrect
+              
+              Try adjusting your search criteria and ensure tracking URLs match exactly.`,
+            severity: 'warning',
+          });
+        } else {
+          setSnackbar({
+            open: true,
+            message: `Failed to generate report: ${response.message}`,
+            severity: 'error',
+          });
+        }
+        setIsGenerating(false);
       }
-    } catch (error) {
-      setSnackbar({
-        open: true,
-        message: `Error generating report: ${error}`,
-        severity: 'error',
-      });
-    } finally {
+    } catch (err: unknown) {
+      console.error('Error generating report:', err);
+      
+      // Check if the error message indicates no data found
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      if (errorMessage.toLowerCase().includes('no data') || 
+          errorMessage.toLowerCase().includes('no results') ||
+          errorMessage.toLowerCase().includes('no campaigns')) {
+        setSnackbar({
+          open: true,
+          message: `No matching campaign data found. This could mean:
+            • No campaigns used these tracking URLs
+            • No campaigns were sent in this date range
+            • The tracking URLs might be misspelled
+            • The advertiser name might be incorrect
+            
+            Try adjusting your search criteria and ensure tracking URLs match exactly.`,
+          severity: 'warning',
+        });
+      } else {
+        setSnackbar({
+          open: true,
+          message: `Error generating report: ${errorMessage}`,
+          severity: 'error',
+        });
+      }
       setIsGenerating(false);
     }
   };

@@ -61,17 +61,43 @@ export const useReportStore = create<ReportState>()(
       formData: null,
       progress: initialProgress,
       reports: [],
-      setIsGenerating: (isGenerating: boolean) => set({ isGenerating }),
-      setFormData: (formData: FormData | null) => set({ formData }),
-      setProgress: (progress: ReportProgress) => set({ progress }),
-      resetProgress: () => set({ progress: initialProgress }),
-      setReports: (reports: Report[]) => set({ reports }),
+      setIsGenerating: (isGenerating: boolean) => set((state) => ({ 
+        ...state,
+        isGenerating 
+      })),
+      setFormData: (formData: FormData | null) => set((state) => ({ 
+        ...state,
+        formData 
+      })),
+      setProgress: (progress: ReportProgress) => set((state) => ({ 
+        ...state,
+        progress 
+      })),
+      resetProgress: () => set((state) => ({ 
+        ...state,
+        progress: initialProgress 
+      })),
+      setReports: (reports: Report[]) => set((state) => ({ 
+        ...state,
+        reports 
+      })),
       addReport: (report: Report) => 
-        set((state: ReportState) => ({ 
-          reports: [report, ...state.reports]
-        })),
+        set((state: ReportState) => {
+          // Check if report already exists
+          const exists = state.reports.some(r => r.id === report.id);
+          if (exists) {
+            return state; // Return unchanged state if report exists
+          }
+          // Add new report to the beginning of the array
+          return { 
+            ...state,
+            reports: [report, ...state.reports],
+            isGenerating: false // Reset generating state
+          };
+        }),
       deleteReport: (reportId: string) => 
         set((state: ReportState) => ({
+          ...state,
           reports: state.reports.filter((r: Report) => r.id !== reportId)
         })),
     }),

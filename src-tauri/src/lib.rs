@@ -6,6 +6,7 @@ use std::io::Write;
 use std::fs::File;
 use tauri::Emitter;
 use base64;
+use url::Url;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Settings {
@@ -55,7 +56,7 @@ struct ReportResponse {
     progress_updates: Vec<ProgressUpdate>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 struct SavedReport {
     id: String,
     name: String,
@@ -302,8 +303,74 @@ fn save_report(app: tauri::AppHandle, report: SavedReport) -> Result<(), String>
         .map_err(|e| format!("Failed to write reports: {}", e))
 }
 
+// Add these validation functions before the generate_report function
+fn validate_tracking_urls(urls: &[String]) -> Result<(), String> {
+    if urls.is_empty() {
+        return Err("No tracking URLs provided".to_string());
+    }
+
+    for url in urls {
+        if url.is_empty() {
+            continue; // Skip empty URLs as they're handled separately
+        }
+
+        // Check if it's a valid URL or URL path component
+        if !url.starts_with("http://") && !url.starts_with("https://") {
+            // If not a full URL, check if it's at least a valid URL path component
+            if url.contains(char::is_whitespace) || url.contains('<') || url.contains('>') {
+                return Err(format!("Invalid tracking URL or path component: {}", url));
+            }
+        } else {
+            // If it's meant to be a full URL, validate it properly
+            if let Err(_) = Url::parse(url) {
+                return Err(format!("Invalid tracking URL format: {}", url));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_campaign_data(campaigns: &[serde_json::Value], newsletter_type: &str) -> Result<(), String> {
+    if campaigns.is_empty() {
+        return Err("No campaigns found for the specified date range".to_string());
+    }
+
+    let newsletter_type_lower = newsletter_type.to_lowercase();
+    let mut matching_campaigns = 0;
+
+    for campaign in campaigns {
+        if let Some(settings) = campaign.get("settings") {
+            if let Some(title) = settings.get("title").and_then(|t| t.as_str()) {
+                let title_lower = title.to_lowercase();
+                
+                let matches = if newsletter_type_lower == "hc" {
+                    title_lower.contains("hc") || title_lower.contains("health care")
+                } else {
+                    title_lower.contains(&newsletter_type_lower)
+                };
+                
+                if matches {
+                    matching_campaigns += 1;
+                }
+            }
+        }
+    }
+
+    if matching_campaigns == 0 {
+        return Err(format!(
+            "No campaigns found matching the newsletter type '{}'. Please check if the newsletter type is correct.",
+            newsletter_type
+        ));
+    }
+
+    Ok(())
+}
+
 #[tauri::command]
 async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Result<ReportResponse, String> {
+    // Validate tracking URLs first
+    validate_tracking_urls(&request.tracking_urls)?;
+
     // Init progress tracking with start time
     let start_time = std::time::Instant::now();
     let mut progress_updates = Vec::new();
@@ -416,6 +483,9 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         }
     };
     
+    // After fetching campaigns, validate the campaign data
+    validate_campaign_data(campaigns, &request.newsletter_type)?;
+
     // 30% progress
     let filtering_update = ProgressUpdate {
         stage: "FilteringCampaigns".to_string(),
@@ -600,6 +670,19 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         }
     }
     
+    // Modify the final success check to ensure we have actual data
+    if report_data.is_empty() {
+        return Ok(ReportResponse {
+            success: false,
+            message: format!(
+                "No data found for the specified tracking URLs in campaigns matching '{}'. Please verify your tracking URLs and newsletter type.",
+                request.newsletter_type
+            ),
+            data: None,
+            progress_updates,
+        });
+    }
+
     // 80% progress
     let finalizing_update = ProgressUpdate {
         stage: "FinalizingReport".to_string(),
@@ -658,7 +741,14 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     };
 
     println!("About to save report with metrics: {:?}", report.metrics);
-    save_report(app.clone(), report)?;
+    save_report(app.clone(), report.clone())?;
+
+    // Emit report-generated event with the complete report data
+    if let Err(e) = app.emit("report-generated", serde_json::json!({
+        "report": report
+    })) {
+        println!("Failed to emit report-generated event: {}", e);
+    }
 
     // 100% progress
     let complete_update = ProgressUpdate {
@@ -1035,6 +1125,12 @@ fn get_settings_path(app: tauri::AppHandle) -> Result<String, String> {
     Ok(settings_path.to_string_lossy().to_string())
 }
 
+#[tauri::command]
+fn emit_event(app: tauri::AppHandle, event: String, payload: Option<serde_json::Value>) -> Result<(), String> {
+    app.emit(&event, payload)
+        .map_err(|e| format!("Failed to emit event: {}", e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -1054,7 +1150,8 @@ pub fn run() {
             opener_open,
             download_report,
             download_csv,
-            get_settings_path
+            get_settings_path,
+            emit_event
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

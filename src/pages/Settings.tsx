@@ -142,6 +142,13 @@ const Settings = () => {
       console.log('Saving settings:', settings);
       await invoke('save_settings', { settings });
       console.log('Settings saved successfully');
+      
+      // Emit settings-updated event
+      await invoke('emit_event', { 
+        event: 'settings-updated',
+        payload: null
+      });
+      
       setSnackbar({
         open: true,
         message: 'Settings saved successfully',
@@ -223,6 +230,13 @@ const Settings = () => {
         console.log('About to save settings with new advertiser:', updatedSettings);
         await invoke('save_settings', { settings: updatedSettings });
         console.log('Settings with new advertiser saved successfully');
+        
+        // Emit settings-updated event
+        await invoke('emit_event', { 
+          event: 'settings-updated',
+          payload: null
+        });
+        
         setSnackbar({
           open: true,
           message: 'Advertiser added successfully',
@@ -246,7 +260,6 @@ const Settings = () => {
   const handleDeleteAdvertiser = async (advertiser: string) => {
     console.log('Deleting advertiser:', advertiser);
     
-    // Create updated settings without the deleted advertiser
     const updatedSettings = {
       ...settings,
       advertisers: settings.advertisers.filter(a => a !== advertiser),
@@ -254,24 +267,27 @@ const Settings = () => {
     
     console.log('Updated settings after delete:', updatedSettings);
     
-    // Update state
     setSettings(updatedSettings);
     
-    // Use a small timeout to ensure state is updated before saving
     await new Promise(resolve => setTimeout(resolve, 100));
     
-    // Save the updated settings directly
     try {
       console.log('About to save settings after advertiser deletion:', updatedSettings);
       await invoke('save_settings', { settings: updatedSettings });
       console.log('Settings after advertiser deletion saved successfully');
+      
+      // Emit settings-updated event
+      await invoke('emit_event', { 
+        event: 'settings-updated',
+        payload: null
+      });
+      
       setSnackbar({
         open: true,
         message: 'Advertiser deleted successfully',
         severity: 'success',
       });
       
-      // Reload settings to verify they were saved correctly
       await loadSettings();
     } catch (error) {
       console.error('Error saving settings after advertiser deletion:', error);
