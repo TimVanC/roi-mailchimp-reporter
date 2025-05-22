@@ -53,23 +53,6 @@ import type { NewsletterType } from '@/types';
 import { useReportStore } from '@/store/reportStore';
 
 /**
- * Report interface defining the structure of saved reports
- * Must match the SavedReport struct in the Rust backend (lib.rs)
- */
-interface Report {
-  id: string;                 // Unique identifier for the report
-  name: string;               // Display name
-  advertiser: string;         // Associated advertiser
-  report_type: NewsletterType; // Type of newsletter (AM/PM/etc)
-  date_range: {
-    start_date: string;      // Report start date
-    end_date: string;        // Report end date
-  };
-  created: string;           // Report creation timestamp
-  data: any;                 // The actual report data
-}
-
-/**
  * Available newsletter types for filtering
  * These match the types supported in the Mailchimp campaigns
  */
@@ -85,7 +68,7 @@ type BatchOperation = 'delete' | 'download' | 'excel' | null;
  */
 const Reports = () => {
   // Get reports and actions from the global store
-  const { reports, setReports, addReport, deleteReport: storeDeleteReport } = useReportStore();
+  const { reports, setReports, deleteReport: storeDeleteReport } = useReportStore();
   
   // Local state for filtering and UI
   const [advertisers, setAdvertisers] = useState<string[]>([]);
@@ -642,7 +625,7 @@ const Reports = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredReports.map((report, index) => (
+                filteredReports.map((report) => (
                   <TableRow 
                     key={report.id} 
                     className="hover:bg-gray-50"

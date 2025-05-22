@@ -1,4 +1,4 @@
-import { create, type StateCreator } from 'zustand';
+import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { FormData } from '@/types';
 import type { NewsletterType } from '@/types';
@@ -47,12 +47,6 @@ const initialProgress: ReportProgress = {
   currentCampaign: 0,
   totalCampaigns: 0,
 };
-
-type ReportPersist = StateCreator<
-  ReportState,
-  [],
-  [["zustand/persist", unknown]]
->;
 
 export const useReportStore = create<ReportState>()(
   persist(

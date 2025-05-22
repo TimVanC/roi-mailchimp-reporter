@@ -43,7 +43,7 @@ import dayjs from 'dayjs';
 import type { NewsletterType, FormData } from '@/types';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { invoke } from '@tauri-apps/api/core';
-import { UnlistenFn, listen } from '@tauri-apps/api/event';
+import { listen } from '@tauri-apps/api/event';
 import { useReportStore } from '@/store/reportStore';
 
 /**
@@ -84,19 +84,6 @@ interface ProgressUpdate {
 }
 
 /**
- * Progress state interface
- * Contains all necessary information about the progress of report generation
- */
-interface ProgressState {
-  stage: string;
-  percentage: number;
-  message: string;
-  timeRemaining: number | null;
-  currentCampaign: number;
-  totalCampaigns: number;
-}
-
-/**
  * Response interface for the generate_report Rust function
  * Contains success status, messages, and the actual report data
  */
@@ -114,9 +101,6 @@ interface GenerateReportResponse {
 const RunReport = () => {
   const [snackbar, setSnackbar] = useState<SnackbarState>({ open: false, message: '', severity: 'info' });
   const [advertisers, setAdvertisers] = useState<string[]>([]);
-  const [selectedAdvertiser, setSelectedAdvertiser] = useState<string>('');
-  const [selectedNewsletterType, setSelectedNewsletterType] = useState<string>('');
-  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([]);
   const [trackingUrls, setTrackingUrls] = useState<string[]>(['']);
   
   // Get state and actions from the global store
@@ -126,12 +110,11 @@ const RunReport = () => {
     progress,
     setIsGenerating,
     setFormData,
-    setProgress,
     resetProgress
   } = useReportStore();
 
   // React Hook Form setup with persisted data
-  const { control, handleSubmit, watch, reset, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, watch, reset } = useForm<FormData>({
     defaultValues: savedFormData || {
       newsletterType: 'AM',
       advertiser: '',
@@ -173,7 +156,6 @@ const RunReport = () => {
   useEffect(() => {
     console.log('RunReport component mounted, loading settings...');
     loadSettings();
-    setupProgressListener();
     
     // Listen for settings changes
     const setupSettingsListener = async () => {
@@ -189,35 +171,6 @@ const RunReport = () => {
     
     setupSettingsListener();
   }, []);
-
-  /**
-   * Sets up real-time progress event listener
-   * Handles:
-   * - Registration of event listener
-   * - Parsing of progress updates
-   * - Extraction of campaign counting information
-   * - Progress state updates
-   */
-  const setupProgressListener = async () => {
-    try {
-      const unlisten = await listen<ProgressUpdate>('report-progress', (event) => {
-        const update = event.payload;
-        console.log('Progress update received:', update);
-        
-        setProgress({
-          stage: update.stage,
-          percentage: update.progress,
-          message: update.message,
-          timeRemaining: typeof update.time_remaining === 'number' ? update.time_remaining : null,
-          currentCampaign: progress.currentCampaign,
-          totalCampaigns: progress.totalCampaigns
-        });
-      });
-      return unlisten;
-    } catch (error) {
-      console.error("Failed to set up progress listener:", error);
-    }
-  };
 
   /**
    * Formats the remaining time into a human-readable string
@@ -245,9 +198,7 @@ const RunReport = () => {
   };
 
   /**
-   * Loads application settings from the backend
-   * Updates advertiser list only if it has changed
-   * Handles loading states and error logging
+   * Load settings from the backend
    */
   const loadSettings = async () => {
     try {
