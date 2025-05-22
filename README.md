@@ -1,87 +1,125 @@
 # ROI Mailchimp Reporter
 
-A desktop application built with Tauri, React, and TypeScript that helps track and analyze ROI from Mailchimp newsletter campaigns. The application allows users to generate reports based on newsletter performance metrics and manage advertiser tracking.
+**ROI Mailchimp Reporter** is a cross-platform desktop application built to streamline the process of analyzing and reporting performance metrics for Mailchimp newsletter campaigns. Designed for marketing teams, campaign managers, and ROI analysts, it simplifies the generation of standardized reports, tracks advertiser performance, and enables data-driven decision-making.
 
-## Features
+---
 
-- **Campaign Reporting**: Generate detailed reports for AM/PM newsletters
-- **Advertiser Management**: Track multiple advertisers and their campaign performance
-- **Mailchimp Integration**: Direct integration with Mailchimp API
-- **Export Options**: Download reports in Excel format
-- **Cross-Platform**: Works on Windows, macOS, and Linux
+## 🚀 Features
 
-## Prerequisites
+### 📊 Campaign Report Generation
+- Generate performance reports from Mailchimp campaign data
+- Filter by date range and newsletter type (AM, PM, Energy, Health Care, Breaking News)
+- Track custom advertiser URLs and engagement metrics
 
-- [Node.js](https://nodejs.org/) (v16 or higher)
-- [Rust](https://www.rust-lang.org/tools/install)
-- [Tauri Prerequisites](https://tauri.app/v1/guides/getting-started/prerequisites)
+### 🗂️ Report Management
+- View and download historical reports as CSV
+- Open reports directly in Excel
+- Batch download/delete capabilities
+- Filter by advertiser and newsletter type
 
-## Setup
+### ⚙️ Settings Management
+- Configure Mailchimp API credentials
+- Add, remove, and search advertisers
+- Set and persist download directory preferences
 
-1. Clone the repository:
-```bash
-git clone https://github.com/your-username/roi-mailchimp-reporter.git
-cd roi-mailchimp-reporter
-```
+---
 
-2. Install dependencies:
-```bash
-npm install
-```
+## 🧱 Tech Stack
 
-3. Create a `.env` file in the root directory with your Mailchimp credentials:
-```env
-VITE_MAILCHIMP_API_KEY=your_api_key
-VITE_MAILCHIMP_AUDIENCE_ID=your_audience_id
-```
+### Frontend
+- **React 18 (TypeScript)** – Type-safe, modern UI
+- **Tailwind CSS** – Utility-first styling
+- **Material-UI (MUI)** – Pre-built components for clean design
+- **Zustand** – Lightweight global state management
+- **Custom Hooks & Responsive Design** – For clean and maintainable UI
 
-## Development
+### Backend / System Integration
+- **Tauri 2.0** – Rust-powered secure backend with native file system access
+- **Rust** – High-performance backend logic for CSV handling, local storage, and security
+- **Mailchimp API** – Real-time campaign data retrieval and analytics
 
-Start the development server:
-```bash
-npm run tauri dev
-```
+---
 
-Build the application:
-```bash
-npm run tauri build
-```
+## 🔒 Security & Performance
 
-## Project Structure
+- **Secure API credential storage**
+- **Local file system isolation and sandboxing**
+- **Optimized asynchronous processing**
+- **Error handling with retry logic**
+- **Caching and validation mechanisms**
 
-```
-src/
-├── components/     # Reusable React components
-├── pages/         # Main application pages
-│   ├── RunReport.tsx    # Report generation page
-│   ├── Reports.tsx      # Report history and management
-│   └── Settings.tsx     # Application configuration
-├── types/         # TypeScript type definitions
-└── utils/         # Helper functions and utilities
-```
+---
 
-## Configuration
+## 🧠 Developer Practices
 
-### Mailchimp Settings
-1. Navigate to the Settings page in the application
-2. Enter your Mailchimp API Key and Audience ID
-3. Add your advertisers
+- Feature-based directory structure
+- Strong type definitions and code organization
+- Centralized and persistent state management
+- Unit and integration tests for core features
+- Graceful error recovery and helpful UI feedback
 
-### Report Types
-- AM Newsletter Reports
-- PM Newsletter Reports
-- Energy Newsletter Reports
-- Health Care Newsletter Reports
-- Breaking News Reports
+---
 
-## Contributing
+## 👥 Target Users
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
+- Marketing teams
+- ROI analysts
+- Advertising coordinators
+- Campaign managers
+- Newsletter editors
 
-## License
+---
 
-[MIT License](LICENSE)
+## 💼 Business Value
+
+- Track ROI per advertiser and newsletter
+- Automate report generation and historical analysis
+- Improve campaign efficiency with fast insights
+- Standardized and professional reporting format
+
+---
+
+## 🌱 Future Roadmap
+
+- 📈 Advanced analytics & charts
+- 🧩 CRM & analytics platform integrations
+- 🎨 Dark mode and customizable themes
+- 🖼️ Custom report templates
+- 🔁 Support for other email platforms (Klaviyo, Constant Contact, etc.)
+
+---
+
+## 📸 Screenshots
+
+### Campaign Report design
+![Report design](./docs/runReport.png)
+
+### Report Viewer
+![Report Viewer](./docs/reports.png)
+
+### Settings
+![Settings](./docs/settings.png)
+
+---
+
+## 🛠 Setup Instructions
+
+> Coming soon — if you're a recruiter or hiring manager and want to explore the app, feel free to contact me directly for a walkthrough or demo.
+
+---
+
+## 👋 About the Developer
+
+Built by **[Tim Van Cauwenberge](https://www.linkedin.com/in/timvanc/)** – I'm a self-taught developer with a passion for automation, performance-driven tools, and marketing analytics. This project was inspired by real business needs at ROI-NJ and reflects my end-to-end skills in full-stack development, UI/UX, and data reporting.
+
+---
+
+## 📫 Contact
+
+- **Email:** timvancau@gmail.com
+- **LinkedIn:** [linkedin.com/in/timvanc](https://www.linkedin.com/in/timvanc/)
+- **Portfolio:** [vanCauwenberge.com](https://www.vancauwenberge.com) (live project)
+
+---
+
+> If you're hiring for a full-time, contract, or freelance role and are looking for someone who can deliver results, analyze complex data, and build production-level tools — I'd love to chat!
