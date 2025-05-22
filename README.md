@@ -110,14 +110,14 @@
 
 ## 👋 About the Developer
 
-Built by **[Tim Van Cauwenberge](https://www.linkedin.com/in/timvanc/)** – I'm a self-taught developer with a passion for automation, performance-driven tools, and marketing analytics. This project was inspired by real business needs at ROI-NJ and reflects my end-to-end skills in full-stack development, UI/UX, and data reporting.
+Built by **[Tim Van Cauwenberge](https://www.linkedin.com/in/timothyvancauwenberge/)** – I have a Bachelor's degree in Computer Science and a strong track record of self-taught development beyond the classroom. This project reflects both my formal training and hands-on experience building real tools to solve business problems. I'm passionate about automation, performance-driven design, and marketing analytics, and I built this tool in response to real needs at ROI-NJ.
 
 ---
 
 ## 📫 Contact
 
 - **Email:** timvancau@gmail.com
-- **LinkedIn:** [linkedin.com/in/timvanc](https://www.linkedin.com/in/timvanc/)
+- **LinkedIn:** [linkedin.com/in/timothyvancauwenberge](https://www.linkedin.com/in/timothyvancauwenberge/)
 - **Portfolio:** [vanCauwenberge.com](https://www.vancauwenberge.com) (live project)
 
 ---
