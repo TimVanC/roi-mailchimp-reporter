@@ -512,27 +512,23 @@ const Reports = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto pt-8">
-      {/* Filter Controls and Batch Actions */}
-      <div className="flex gap-4 mb-6 items-center flex-wrap">
-        {/* Advertiser Filter Dropdown */}
+    <div className="w-full">
+      <div className="bg-white rounded-lg shadow-sm px-6 pt-2 pb-6">
+        {/* Title section */}
+        <div className="mb-3">
+          <h2 className="text-[22px] font-semibold text-gray-900">Report History</h2>
+          <p className="text-sm text-gray-600 mt-1">View, download, and manage your generated reports</p>
+        </div>
+
+        {/* Filter controls and batch actions */}
+        <div className="flex gap-4 mb-4 items-center">
         <TextField
           select
           label="Filter by Advertiser"
-          size="small"
-          className="w-64"
           value={selectedAdvertiser}
           onChange={(e) => setSelectedAdvertiser(e.target.value)}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              '&.Mui-focused': {
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(0, 0, 0, 0.23) !important',
-                  borderWidth: '1px !important'
-                }
-              }
-            }
-          }}
+            className="w-48"
+            size="small"
         >
           <MenuItem value="">All Advertisers</MenuItem>
           {advertisers.map((advertiser) => (
@@ -542,24 +538,13 @@ const Reports = () => {
           ))}
         </TextField>
 
-        {/* Newsletter Type Filter Dropdown */}
         <TextField
           select
           label="Filter by Type"
-          size="small"
-          className="w-64"
           value={selectedType}
           onChange={(e) => setSelectedType(e.target.value)}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              '&.Mui-focused': {
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(0, 0, 0, 0.23) !important',
-                  borderWidth: '1px !important'
-                }
-              }
-            }
-          }}
+            className="w-48"
+            size="small"
         >
           <MenuItem value="">All Types</MenuItem>
           {NEWSLETTER_TYPES.map((type) => (
@@ -569,74 +554,74 @@ const Reports = () => {
           ))}
         </TextField>
 
-        {/* Spacer */}
-        <div className="flex-grow" />
+          <div className="flex-grow" />
 
-        {/* Batch Action Buttons */}
-        {selectedReports.length > 0 && (
-          <ButtonGroup 
-            variant="outlined" 
-            size="small"
-            className="mr-4"
-          >
-            <Tooltip title="Download selected reports as CSV">
-              <Button
-                startIcon={<FileDownloadIcon />}
-                onClick={() => setBatchOperation('download')}
-                disabled={isBatchProcessing}
-              >
-                Download ({selectedReports.length})
-              </Button>
-            </Tooltip>
-            <Tooltip title="Open selected reports in Excel">
-              <Button
-                startIcon={<TableViewIcon />}
-                onClick={() => setBatchOperation('excel')}
-                disabled={isBatchProcessing}
-              >
-                Excel ({selectedReports.length})
-              </Button>
-            </Tooltip>
-            <Tooltip title="Delete selected reports">
-              <Button
-                startIcon={<DeleteIcon />}
-                onClick={() => setBatchOperation('delete')}
-                disabled={isBatchProcessing}
-                color="error"
-              >
-                Delete ({selectedReports.length})
-              </Button>
-            </Tooltip>
-          </ButtonGroup>
-        )}
-
-        {/* Refresh Button */}
-        <IconButton
-          onClick={() => loadReportsWithRetry(true)}
-          disabled={isRefreshing}
-          title="Refresh Reports"
-        >
-          {isRefreshing ? (
-            <CircularProgress size={24} />
-          ) : (
-            <RefreshIcon />
+          {/* Batch Action Buttons */}
+          {selectedReports.length > 0 && (
+            <ButtonGroup 
+              variant="outlined" 
+              size="small"
+              className="mr-4"
+            >
+              <Tooltip title="Download selected reports as CSV">
+                <Button
+                  startIcon={<FileDownloadIcon />}
+                  onClick={() => setBatchOperation('download')}
+                  disabled={isBatchProcessing}
+                >
+                  Download ({selectedReports.length})
+                </Button>
+              </Tooltip>
+              <Tooltip title="Open selected reports in Excel">
+                <Button
+                  startIcon={<TableViewIcon />}
+                  onClick={() => setBatchOperation('excel')}
+                  disabled={isBatchProcessing}
+                >
+                  Excel ({selectedReports.length})
+                </Button>
+              </Tooltip>
+              <Tooltip title="Delete selected reports">
+                <Button
+                  startIcon={<DeleteIcon />}
+                  onClick={() => setBatchOperation('delete')}
+                  disabled={isBatchProcessing}
+                  color="error"
+                >
+                  Delete ({selectedReports.length})
+                </Button>
+              </Tooltip>
+            </ButtonGroup>
           )}
-        </IconButton>
+
+          {/* Refresh Button */}
+          <Tooltip title="Refresh Reports">
+            <IconButton 
+              onClick={() => loadReportsWithRetry(true)}
+              disabled={isRefreshing}
+            >
+              {isRefreshing ? (
+                <CircularProgress size={24} />
+              ) : (
+                <RefreshIcon />
+              )}
+            </IconButton>
+          </Tooltip>
       </div>
 
       {/* Reports Table */}
-      <TableContainer>
+        <TableContainer>
         <Table>
           <TableHead>
             <TableRow className="bg-gray-50">
-              <TableCell padding="checkbox">
-                <Checkbox
-                  indeterminate={selectedReports.length > 0 && selectedReports.length < filteredReports.length}
-                  checked={filteredReports.length > 0 && selectedReports.length === filteredReports.length}
-                  onChange={handleSelectAll}
-                  size="small"
-                />
-              </TableCell>
+                <TableCell padding="checkbox">
+                  <Checkbox
+                    indeterminate={selectedReports.length > 0 && selectedReports.length < filteredReports.length}
+                    checked={filteredReports.length > 0 && selectedReports.length === filteredReports.length}
+                    onChange={handleSelectAll}
+                    size="small"
+                  />
+                </TableCell>
               <TableCell sx={{ fontWeight: 600 }}>Advertiser</TableCell>
               <TableCell sx={{ fontWeight: 600 }} align="center">Type</TableCell>
               <TableCell sx={{ fontWeight: 600 }}>Date Range</TableCell>
@@ -645,75 +630,80 @@ const Reports = () => {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredReports.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} align="center" className="py-8">
-                  <p className="text-gray-500">No reports found</p>
-                  {(selectedAdvertiser || selectedType) && (
-                    <p className="text-gray-400 text-sm mt-2">
-                      Try adjusting your filters
-                    </p>
-                  )}
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredReports.map((report) => (
-                <TableRow 
-                  key={report.id} 
-                  className="hover:bg-gray-50"
-                  selected={selectedReports.includes(report.id)}
-                >
-                  <TableCell padding="checkbox">
-                    <Checkbox
-                      checked={selectedReports.includes(report.id)}
-                      onChange={() => handleSelectReport(report.id)}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>{report.advertiser}</TableCell>
-                  <TableCell align="center">{report.report_type}</TableCell>
-                  <TableCell>{formatDateRange(report.date_range)}</TableCell>
-                  <TableCell align="center">{report.created}</TableCell>
-                  <TableCell>
-                    <div className="flex justify-center gap-1">
-                      <IconButton
-                        size="small"
-                        className="text-gray-600 hover:text-gray-900"
-                        title="Open in Excel"
-                        onClick={() => handleOpenInExcel(report)}
-                      >
-                        <TableViewIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        className="text-gray-600 hover:text-gray-900"
-                        title="Download"
-                        onClick={() => handleDownload(report)}
-                      >
-                        <DownloadIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton
-                        size="small"
-                        className="text-red-600 hover:text-red-800"
-                        title="Delete"
-                        onClick={() => setDeleteDialog({ open: true, reportId: report.id })}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
-                    </div>
+              {filteredReports.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={6} align="center" className="py-8">
+                    <p className="text-gray-500">No reports found</p>
+                    {(selectedAdvertiser || selectedType) && (
+                      <p className="text-gray-400 text-sm mt-2">
+                        Try adjusting your filters
+                      </p>
+                    )}
                   </TableCell>
                 </TableRow>
-              ))
-            )}
+              ) : (
+                filteredReports.map((report, index) => (
+                  <TableRow 
+                    key={report.id} 
+                    className="hover:bg-gray-50"
+                    selected={selectedReports.includes(report.id)}
+                    sx={{
+                      '&:last-child td, &:last-child th': {
+                        border: 0
+                      }
+                    }}
+                  >
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        checked={selectedReports.includes(report.id)}
+                        onChange={() => handleSelectReport(report.id)}
+                        size="small"
+                      />
+                    </TableCell>
+                <TableCell>{report.advertiser}</TableCell>
+                <TableCell align="center">{report.report_type}</TableCell>
+                <TableCell>{formatDateRange(report.date_range)}</TableCell>
+                <TableCell align="center">{report.created}</TableCell>
+                    <TableCell>
+                  <div className="flex justify-center gap-1">
+                    <IconButton
+                      size="small"
+                      className="text-gray-600 hover:text-gray-900"
+                      title="Open in Excel"
+                      onClick={() => handleOpenInExcel(report)}
+                    >
+                      <TableViewIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      className="text-gray-600 hover:text-gray-900"
+                      title="Download"
+                      onClick={() => handleDownload(report)}
+                    >
+                      <DownloadIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      className="text-red-600 hover:text-red-800"
+                      title="Delete"
+                      onClick={() => setDeleteDialog({ open: true, reportId: report.id })}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </div>
+                </TableCell>
+              </TableRow>
+                ))
+              )}
           </TableBody>
         </Table>
       </TableContainer>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog
-        open={deleteDialog.open}
-        onClose={() => setDeleteDialog({ open: false, reportId: null })}
-      >
+        <Dialog
+          open={deleteDialog.open}
+          onClose={() => setDeleteDialog({ open: false, reportId: null })}
+        >
         <DialogTitle>Delete Report</DialogTitle>
         <DialogContent>Are you sure you want to delete this report?</DialogContent>
         <DialogActions>
@@ -725,49 +715,49 @@ const Reports = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Batch Operation Confirmation Dialog */}
-      <Dialog
-        open={batchOperation !== null}
-        onClose={() => setBatchOperation(null)}
-      >
-        <DialogTitle>
-          {batchOperation === 'delete' && 'Delete Multiple Reports'}
-          {batchOperation === 'download' && 'Download Multiple Reports'}
-          {batchOperation === 'excel' && 'Open Multiple Reports in Excel'}
-        </DialogTitle>
-        <DialogContent>
-          {batchOperation === 'delete' && (
-            <p>Are you sure you want to delete {selectedReports.length} reports?</p>
-          )}
-          {batchOperation === 'download' && (
-            <p>Download {selectedReports.length} reports as CSV files?</p>
-          )}
-          {batchOperation === 'excel' && (
-            <p>Open {selectedReports.length} reports in Excel?</p>
-          )}
-          {isBatchProcessing && (
-            <div className="mt-4">
-              <CircularProgress size={24} />
-              <span className="ml-2">Processing...</span>
-            </div>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button 
-            onClick={() => setBatchOperation(null)}
-            disabled={isBatchProcessing}
-          >
-            Cancel
-          </Button>
-          <Button
-            color={batchOperation === 'delete' ? 'error' : 'primary'}
-            onClick={handleConfirmBatchOperation}
-            disabled={isBatchProcessing}
-          >
-            Confirm
-          </Button>
-        </DialogActions>
-      </Dialog>
+        {/* Batch Operation Confirmation Dialog */}
+        <Dialog
+          open={batchOperation !== null}
+          onClose={() => setBatchOperation(null)}
+        >
+          <DialogTitle>
+            {batchOperation === 'delete' && 'Delete Multiple Reports'}
+            {batchOperation === 'download' && 'Download Multiple Reports'}
+            {batchOperation === 'excel' && 'Open Multiple Reports in Excel'}
+          </DialogTitle>
+          <DialogContent>
+            {batchOperation === 'delete' && (
+              <p>Are you sure you want to delete {selectedReports.length} reports?</p>
+            )}
+            {batchOperation === 'download' && (
+              <p>Download {selectedReports.length} reports as CSV files?</p>
+            )}
+            {batchOperation === 'excel' && (
+              <p>Open {selectedReports.length} reports in Excel?</p>
+            )}
+            {isBatchProcessing && (
+              <div className="mt-4">
+                <CircularProgress size={24} />
+                <span className="ml-2">Processing...</span>
+              </div>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button 
+              onClick={() => setBatchOperation(null)}
+              disabled={isBatchProcessing}
+            >
+              Cancel
+            </Button>
+            <Button
+              color={batchOperation === 'delete' ? 'error' : 'primary'}
+              onClick={handleConfirmBatchOperation}
+              disabled={isBatchProcessing}
+            >
+              Confirm
+            </Button>
+          </DialogActions>
+        </Dialog>
 
       {/* Notification Snackbar */}
       <Snackbar
@@ -783,6 +773,7 @@ const Reports = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      </div>
     </div>
   );
 };

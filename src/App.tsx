@@ -126,8 +126,8 @@ const App = () => {
             </header>
 
             {/* Main content area with responsive container */}
-            <main className="flex-1 container mx-auto px-6 py-8">
-              <div className="bg-white rounded-lg shadow-sm p-8 max-w-3xl mx-auto">
+            <main className="flex-1 container mx-auto px-6 pt-2 pb-4 mt-6">
+              <div className="bg-white rounded-lg shadow-sm px-8 pt-4 pb-8 max-w-3xl mx-auto">
                 <Routes>
                   <Route path="/" element={<RunReport />} />
                   <Route path="/reports" element={<Reports />} />

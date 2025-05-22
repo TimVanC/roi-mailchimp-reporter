@@ -74,7 +74,6 @@ const Settings = () => {
   // UI state management for modals, notifications, and user feedback
   const [isAddAdvertiserOpen, setIsAddAdvertiserOpen] = useState(false);
   const [newAdvertiser, setNewAdvertiser] = useState('');
-  const [settingsPath, setSettingsPath] = useState<string>('');
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -92,27 +91,12 @@ const Settings = () => {
   const itemsPerPage = 10; // Number of advertisers shown per page
 
   /**
-   * Initialize component by loading settings and determining storage location
+   * Initialize component by loading settings
    * This runs once when the component mounts
    */
   useEffect(() => {
     loadSettings();
-    getSettingsPath();
   }, []);
-
-  /**
-   * Retrieves the filesystem path where settings are stored
-   * Useful for debugging and user support
-   */
-  const getSettingsPath = async () => {
-    try {
-      const path = await invoke<string>('get_settings_path');
-      setSettingsPath(path);
-      console.log('Settings path:', path);
-    } catch (error) {
-      console.error('Error getting settings path:', error);
-    }
-  };
 
   /**
    * Loads settings from the Rust backend's persistent storage
@@ -359,10 +343,10 @@ const Settings = () => {
   };
 
   return (
-    <div className="max-w-2xl mx-auto pt-8">
+    <div className="max-w-2xl mx-auto pt-1">
       {/* Mailchimp API Settings */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-6">Mailchimp API Settings</h2>
+      <div className="bg-white rounded-lg border border-gray-200 px-6 py-3.5">
+        <h2 className="text-xl font-semibold mb-2.5">Mailchimp API Settings</h2>
         <div className="space-y-4">
           <div>
             <TextField
@@ -394,31 +378,12 @@ const Settings = () => {
           >
             Save Configuration
           </Button>
-          
-          {/* Debug button to show settings path */}
-          <div className="mt-2 text-xs text-gray-500">
-            <p>Settings file: {settingsPath}</p>
-            <Button 
-              size="small" 
-              variant="outlined"
-              className="mt-1 text-xs"
-              onClick={() => {
-                setSnackbar({
-                  open: true,
-                  message: `Settings path: ${settingsPath}`,
-                  severity: 'info',
-                });
-              }}
-            >
-              Debug Info
-            </Button>
-          </div>
         </div>
       </div>
       
       {/* Download Directory Settings */}
-      <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Download Directory</h2>
+      <div className="bg-white rounded-lg border border-gray-200 px-6 py-3.5 mt-2.5">
+        <h2 className="text-xl font-semibold mb-2.5">Download Directory</h2>
         <p className="text-sm text-gray-600 mb-4">
           Select where CSV reports and other downloads will be saved.
         </p>
@@ -458,8 +423,8 @@ const Settings = () => {
       </div>
 
       {/* Advertisers Management */}
-      <div className="bg-white rounded-lg shadow-sm p-6">
-        <div className="flex justify-between items-center mb-4">
+      <div className="bg-white rounded-lg border border-gray-200 px-6 py-3.5 mt-2.5">
+        <div className="flex justify-between items-center mb-3.5">
           <h2 className="text-xl font-semibold">Advertisers</h2>
           <Button
             startIcon={<AddIcon />}
