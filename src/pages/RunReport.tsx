@@ -519,13 +519,7 @@ const RunReport = () => {
         if (!hasValidData) {
           setSnackbar({
             open: true,
-            message: `No matching campaign data found. This could mean:
-              • No campaigns used these tracking URLs
-              • No campaigns were sent in this date range
-              • The tracking URLs might be misspelled
-              • The advertiser name might be incorrect
-              
-              Try adjusting your search criteria and ensure tracking URLs match exactly.`,
+            message: `No campaigns found. Check tracking URLs, date range, and advertiser name.`,
             severity: 'warning',
           });
           setIsGenerating(false);
@@ -565,13 +559,7 @@ const RunReport = () => {
             response.message?.toLowerCase().includes('no campaigns')) {
           setSnackbar({
             open: true,
-            message: `No matching campaign data found. This could mean:
-              • No campaigns used these tracking URLs
-              • No campaigns were sent in this date range
-              • The tracking URLs might be misspelled
-              • The advertiser name might be incorrect
-              
-              Try adjusting your search criteria and ensure tracking URLs match exactly.`,
+            message: `No campaigns found. Check tracking URLs, date range, and advertiser name.`,
             severity: 'warning',
           });
         } else {
@@ -593,13 +581,7 @@ const RunReport = () => {
           errorMessage.toLowerCase().includes('no campaigns')) {
         setSnackbar({
           open: true,
-          message: `No matching campaign data found. This could mean:
-            • No campaigns used these tracking URLs
-            • No campaigns were sent in this date range
-            • The tracking URLs might be misspelled
-            • The advertiser name might be incorrect
-            
-            Try adjusting your search criteria and ensure tracking URLs match exactly.`,
+          message: `No campaigns found. Check tracking URLs, date range, and advertiser name.`,
           severity: 'warning',
         });
       } else {
