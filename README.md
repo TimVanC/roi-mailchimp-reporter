@@ -118,7 +118,7 @@ Built by **[Tim Van Cauwenberge](https://www.linkedin.com/in/timothyvancauwenber
 
 - **Email:** timvancau@gmail.com
 - **LinkedIn:** [linkedin.com/in/timothyvancauwenberge](https://www.linkedin.com/in/timothyvancauwenberge/)
-- **Portfolio:** [vanCauwenberge.com](https://www.vancauwenberge.com) (live project)
+- **Portfolio:** [vanCauwenberge.com](https://www.vancauwenberge.com)
 
 ---
 
