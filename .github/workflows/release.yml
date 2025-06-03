@@ -87,6 +87,11 @@ jobs:
           targets: x86_64-apple-darwin
           components: rustc, cargo
           
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+          
       - name: Install Rust dependencies
         run: |
           rustup target add x86_64-apple-darwin
@@ -116,12 +121,13 @@ jobs:
           npm --version
           echo "Xcode version:"
           xcodebuild -version
-          echo "Current directory:"
-          pwd
-          echo "Directory contents:"
-          ls -la
-          echo "Tauri config:"
-          cat src-tauri/tauri.conf.json
+          
+      - name: Update Rust dependencies
+        run: |
+          cd src-tauri
+          cargo update
+          cargo update -p time --precise "0.3.35"
+          cd ..
           
       - name: Build Frontend
         run: |
@@ -133,11 +139,11 @@ jobs:
       - name: Build Tauri App
         run: |
           echo "Starting Tauri build..."
-          cargo install tauri-cli@2.0.0-beta.9 --locked
+          cargo install tauri-cli@2.0.0-beta.9 --locked --force
           echo "Installed Tauri CLI"
           cd src-tauri
           echo "Building release..."
-          cargo build --release --verbose
+          CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build --release --verbose
           echo "Cargo build complete"
           cd ..
           echo "Running Tauri build..."
@@ -147,6 +153,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           MACOSX_DEPLOYMENT_TARGET: "10.13"
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
           
       - name: Debug Build Output
         if: always()
