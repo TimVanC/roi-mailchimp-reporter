@@ -5,64 +5,148 @@ on:
     tags:
       - 'v*'
 
+env:
+  RUST_BACKTRACE: 1 # For better error reporting
+  CARGO_TERM_COLOR: always
+
 jobs:
-  release:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.id }}
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Create Release
+        id: create-release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: ROI Mailchimp Reporter ${{ github.ref_name }}
+          draft: true
+          prerelease: false
+          body: |
+            Release ${{ github.ref_name }} of ROI Mailchimp Reporter.
+            
+            ### Installation
+            - Windows: Download and run the .msi installer
+            - macOS: Download and open the .dmg file
+            
+            Auto-updates will be available after installation.
+
+  build-and-upload:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
-        platform: [macos-latest, windows-latest]
+        include:
+          - os: macos-latest
+            rust_target: x86_64-apple-darwin
+            asset_extension: dmg
+            asset_content_type: application/x-apple-diskimage
+          - os: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            asset_extension: msi
+            asset_content_type: application/x-msi
 
-    runs-on: ${{ matrix.platform }}
-
+    runs-on: ${{ matrix.os }}
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Needed for update manifest
 
-      - name: Setup Node.js
+      # Setup Node.js environment
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: '18'
           cache: 'npm'
-
+          
+      # Setup Rust environment
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Rust dependencies
-        uses: actions/cache@v3
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            src-tauri/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
+          targets: ${{ matrix.rust_target }}
+          
+      # Cache Rust dependencies
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+          
+      # Install system dependencies (macOS)
+      - name: Install macOS dependencies
+        if: matrix.os == 'macos-latest'
+        run: |
+          rustup target add x86_64-apple-darwin
+          
+      # Install system dependencies (Windows)
+      - name: Install Windows dependencies
+        if: matrix.os == 'windows-latest'
+        run: |
+          rustup target add x86_64-pc-windows-msvc
+          
+      # Install and build frontend
       - name: Install frontend dependencies
         run: npm ci
-
-      - name: Install Tauri CLI
-        run: npm install -g @tauri-apps/cli@1.5.4
-
+        
       - name: Build frontend
         run: npm run build
-
-      - name: Build Tauri app (macOS)
-        if: matrix.platform == 'macos-latest'
-        run: npx tauri build --target x86_64-apple-darwin
-
-      - name: Build Tauri app (Windows)
-        if: matrix.platform == 'windows-latest'
-        run: npx tauri build --target x86_64-pc-windows-msvc
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          draft: true
-          generate_release_notes: true
-          files: |
-            src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/*.msi
+        
+      # Build Tauri app
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: ROI Mailchimp Reporter ${{ github.ref_name }}
+          releaseBody: See release notes above.
+          releaseDraft: true
+          args: --target ${{ matrix.rust_target }}
+          
+      # Upload release assets
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ format('./src-tauri/target/release/bundle/{0}/*.{1}', matrix.asset_extension, matrix.asset_extension) }}
+          asset_name: ${{ format('ROI-Mailchimp-Reporter_{0}.{1}', github.ref_name, matrix.asset_extension) }}
+          asset_content_type: ${{ matrix.asset_content_type }}
+
+  update-manifest:
+    needs: [create-release, build-and-upload]
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Generate update manifest
+        run: node scripts/create-update.js
+        
+      - name: Commit and push update manifest
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add updates.json
+          git commit -m "Update release manifest for ${{ github.ref }}"
+          git push 
