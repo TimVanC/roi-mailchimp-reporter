@@ -6,26 +6,37 @@
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
-    "devUrl": "http://localhost:1423",
-    "frontendDist": "../dist"
+    "devPath": "http://localhost:1423",
+    "distDir": "../dist"
   },
-  "app": {
-    "security": {
-      "csp": null
-    },
+  "tauri": {
     "windows": [
       {
-        "fullscreen": false,
-        "resizable": true,
         "title": "ROI Mailchimp Reporter",
         "width": 1200,
         "height": 800,
-        "label": "main",
+        "resizable": true,
+        "fullscreen": false,
         "center": true,
         "minWidth": 800,
         "minHeight": 600
       }
-    ]
+    ],
+    "bundle": {
+      "active": true,
+      "identifier": "com.roi.mailchimp-reporter",
+      "category": "DeveloperTool",
+      "copyright": "© 2024 ROI",
+      "icon": [
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "resources": [],
+      "targets": ["dmg", "msi", "deb", "appimage"]
+    },
+    "security": {
+      "csp": null
+    }
   },
   "bundle": {
     "active": true,
