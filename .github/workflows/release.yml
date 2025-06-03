@@ -26,181 +26,24 @@ jobs:
           name: ROI Mailchimp Reporter ${{ github.ref_name }}
           generate_release_notes: true
 
-  build-windows:
+  build-tauri:
     needs: create-release
-    runs-on: windows-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: tauri-apps/tauri-action@v0
         with:
-          node-version: '20'
-          
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@1.79.0
-        
-      - name: Install dependencies
-        run: |
-          npm install
-          npm list
-        
-      - name: Check Rust setup
-        run: |
-          rustc --version
-          cargo --version
-          
-      - name: Build
-        run: |
-          echo "Starting Tauri build..."
-          npm run tauri build -- --verbose
+          tagName: ${{ github.ref_name }}
+          releaseId: ${{ needs.create-release.outputs.upload_url }}
         env:
-          RUST_BACKTRACE: 1
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          
-      - name: List build artifacts
-        run: |
-          dir src-tauri\target\release\bundle\msi\
-          
-      - name: Upload Windows Build
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ./src-tauri/target/release/bundle/msi/ROI Mailchimp Reporter_${{ github.ref_name }}_x64_en-US.msi
-
-  build-macos:
-    needs: create-release
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@1.79.0
-        with:
-          targets: x86_64-apple-darwin
-          components: rustc, cargo
-          
-      - name: Install Rust dependencies
-        run: |
-          rustup target add x86_64-apple-darwin
-          rustup show
-          cargo --version
-          
-      - name: Install Node dependencies
-        run: |
-          npm install
-          npm list @tauri-apps/cli || true
-          
-      - name: Install system dependencies
-        run: |
-          brew install openssl@3
-          brew install xcodegen
-          brew install jq
-          
-      - name: Check environment
-        run: |
-          echo "Rust version:"
-          rustc --version
-          echo "Cargo version:"
-          cargo --version
-          echo "Node version:"
-          node --version
-          echo "NPM version:"
-          npm --version
-          echo "Xcode version:"
-          xcodebuild -version
-          echo "Current directory:"
-          pwd
-          echo "Directory contents:"
-          ls -la
-          echo "Tauri config:"
-          cat src-tauri/tauri.conf.json
-          
-      - name: Build Frontend
-        run: |
-          echo "Building frontend..."
-          npm run build
-          echo "Frontend build complete"
-          ls -la dist/
-          
-      - name: Build Tauri App
-        run: |
-          echo "Starting Tauri build..."
-          cargo install tauri-cli@2.0.0-beta.9 --locked
-          echo "Installed Tauri CLI"
-          cd src-tauri
-          echo "Building release..."
-          cargo build --release --verbose
-          echo "Cargo build complete"
-          cd ..
-          echo "Running Tauri build..."
-          npm run tauri build -- --verbose
-        env:
-          RUST_BACKTRACE: full
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-          MACOSX_DEPLOYMENT_TARGET: "10.13"
-          
-      - name: Debug Build Output
-        if: always()
-        run: |
-          echo "Checking build output directories..."
-          ls -la src-tauri/target/release/ || true
-          echo "Checking bundle directory..."
-          ls -la src-tauri/target/release/bundle/ || true
-          echo "Checking macos directory..."
-          ls -la src-tauri/target/release/bundle/macos/ || true
-          echo "Checking for build logs..."
-          find src-tauri/target -name "*.log" -exec cat {} \;
-          echo "Checking for app bundle in alternate locations..."
-          find src-tauri/target -name "*.app" -ls || true
-          
-      - name: Create macOS ZIP
-        run: |
-          # First check the standard location
-          if [ -d "src-tauri/target/release/bundle/macos/ROI Mailchimp Reporter.app" ]; then
-            cd src-tauri/target/release/bundle/macos
-            echo "Found app bundle in standard location"
-          else
-            # Try to find the app bundle anywhere in the target directory
-            APP_PATH=$(find src-tauri/target -name "*.app" -print -quit)
-            if [ -n "$APP_PATH" ]; then
-              echo "Found app bundle at: $APP_PATH"
-              cd $(dirname "$APP_PATH")
-            else
-              echo "Error: App bundle not found in any location"
-              echo "Contents of target directory:"
-              ls -R src-tauri/target/
-              exit 1
-            fi
-          fi
-          
-          echo "Current directory: $(pwd)"
-          echo "Directory contents:"
-          ls -la
-          
-          if [ -d "ROI Mailchimp Reporter.app" ]; then
-            echo "Creating ZIP archive..."
-            zip -r ROIMailchimpReporter_macOS.zip "ROI Mailchimp Reporter.app"
-          else
-            echo "Error: App bundle not found in $(pwd)"
-            exit 1
-          fi
-          
-      - name: Upload macOS Build
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ./src-tauri/target/release/bundle/macos/ROIMailchimpReporter_macOS.zip
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
 
   update-manifest:
-    needs: [create-release, build-windows, build-macos]
+    needs: [create-release, build-tauri]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
