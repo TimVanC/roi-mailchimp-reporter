@@ -7,8 +7,5 @@ rustflags = [
 [build]
 rustc-wrapper = "rustc"
 
-[dependencies]
-time = "0.3.35"
-
 [net]
 git-fetch-with-cli = true 

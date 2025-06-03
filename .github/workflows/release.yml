@@ -125,8 +125,8 @@ jobs:
       - name: Update Rust dependencies
         run: |
           cd src-tauri
+          rm -f Cargo.lock
           cargo update
-          cargo update -p time --precise "0.3.35"
           cd ..
           
       - name: Build Frontend
@@ -147,13 +147,14 @@ jobs:
           echo "Cargo build complete"
           cd ..
           echo "Running Tauri build..."
-          npm run tauri build -- --verbose
+          CARGO_TERM_VERBOSE=true npm run tauri build -- --verbose
         env:
           RUST_BACKTRACE: full
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           MACOSX_DEPLOYMENT_TARGET: "10.13"
           CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+          CARGO_TERM_COLOR: always
           
       - name: Debug Build Output
         if: always()
