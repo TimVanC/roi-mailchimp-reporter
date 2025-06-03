@@ -44,8 +44,8 @@ import {
   ArrowDownward as SortDescIcon,
   FolderOpen as FolderOpenIcon,
 } from '@mui/icons-material';
-import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/tauri';
+import { open } from '@tauri-apps/api/dialog';
 
 /**
  * Settings interface that defines the structure of our application configuration

@@ -42,7 +42,7 @@ import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import type { NewsletterType, FormData } from '@/types';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { useReportStore } from '@/store/reportStore';
 
