@@ -98,18 +98,27 @@ jobs:
           echo "Starting Tauri build..."
           npm run tauri build -- --verbose
         env:
-          RUST_BACKTRACE: 1
+          RUST_BACKTRACE: full
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           
-      - name: List build artifacts
+      - name: Debug Build Output
         run: |
-          ls -la src-tauri/target/release/bundle/macos/
+          echo "Checking build output directories..."
+          ls -la src-tauri/target/release/ || true
+          echo "Checking bundle directory..."
+          ls -la src-tauri/target/release/bundle/ || true
+          echo "Checking macos directory..."
+          ls -la src-tauri/target/release/bundle/macos/ || true
           
       - name: Create macOS ZIP
         run: |
           cd src-tauri/target/release/bundle/macos
-          zip -r ROIMailchimpReporter_macOS.zip "ROI Mailchimp Reporter.app"
+          if [ ! -d "ROI Mailchimp Reporter.app" ]; then
+            echo "Error: App bundle not found!"
+            exit 1
+          fi
+          zip -r ROIMailchimpReporter_macOS.zip ./"ROI Mailchimp Reporter.app"
           
       - name: Upload macOS Build
         uses: softprops/action-gh-release@v1
