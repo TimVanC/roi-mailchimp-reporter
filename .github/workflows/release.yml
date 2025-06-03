@@ -79,47 +79,74 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
           
-      - name: Install Rust
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        
-      - name: Check Rust setup
+        with:
+          targets: x86_64-apple-darwin
+          components: rustc, cargo
+          
+      - name: Install Rust dependencies
         run: |
-          rustc --version
+          rustup target add x86_64-apple-darwin
+          rustup show
           cargo --version
           
-      - name: Install dependencies
+      - name: Install Node dependencies
         run: |
           npm install
-          npm list
+          npm list @tauri-apps/cli || true
           
-      - name: Debug pre-build
+      - name: Install system dependencies
         run: |
-          echo "Current directory structure:"
+          brew install openssl@3
+          brew install xcodegen
+          brew install jq
+          
+      - name: Check environment
+        run: |
+          echo "Rust version:"
+          rustc --version
+          echo "Cargo version:"
+          cargo --version
+          echo "Node version:"
+          node --version
+          echo "NPM version:"
+          npm --version
+          echo "Xcode version:"
+          xcodebuild -version
+          echo "Current directory:"
           pwd
+          echo "Directory contents:"
           ls -la
-          echo "Tauri directory:"
-          ls -la src-tauri/
-          echo "Package.json contents:"
-          cat package.json
           echo "Tauri config:"
           cat src-tauri/tauri.conf.json
-        
-      - name: Build
+          
+      - name: Build Frontend
+        run: |
+          echo "Building frontend..."
+          npm run build
+          echo "Frontend build complete"
+          ls -la dist/
+          
+      - name: Build Tauri App
         run: |
           echo "Starting Tauri build..."
-          npm run tauri build -- --verbose || {
-            echo "Build failed. Checking cargo output..."
-            cat src-tauri/target/release/output 2>/dev/null || true
-            exit 1
-          }
-          echo "Build command completed"
-          echo "Checking target directory structure:"
-          ls -R src-tauri/target/ || true
+          cargo install tauri-cli --version "^2.0.0-beta"
+          echo "Installed Tauri CLI"
+          cd src-tauri
+          echo "Building release..."
+          cargo build --release --verbose
+          echo "Cargo build complete"
+          cd ..
+          echo "Running Tauri build..."
+          npm run tauri build -- --verbose
         env:
           RUST_BACKTRACE: full
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          MACOSX_DEPLOYMENT_TARGET: "10.13"
           
       - name: Debug Build Output
         if: always()
