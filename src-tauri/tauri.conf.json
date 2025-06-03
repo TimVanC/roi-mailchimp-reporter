@@ -10,6 +10,15 @@
     "version": "1.0.1"
   },
   "tauri": {
+    "allowlist": {
+      "all": false,
+      "protocol": {
+        "asset": true,
+        "assetScope": {
+          "allow": ["**"]
+        }
+      }
+    },
     "windows": [
       {
         "title": "ROI Mailchimp Reporter",
