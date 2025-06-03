@@ -46,9 +46,7 @@
       "minimumSystemVersion": "10.13",
       "exceptionDomain": "",
       "signingIdentity": null,
-      "entitlements": null,
-      "providerShortName": null,
-      "license": null
+      "entitlements": null
     },
     "windows": {
       "certificateThumbprint": null,
