@@ -92,17 +92,33 @@ jobs:
         run: |
           npm install
           npm list
+          
+      - name: Debug pre-build
+        run: |
+          echo "Current directory structure:"
+          pwd
+          ls -la
+          echo "Tauri directory:"
+          ls -la src-tauri/
+          echo "Package.json contents:"
+          cat package.json
+          echo "Tauri config:"
+          cat src-tauri/tauri.conf.json
         
       - name: Build
         run: |
           echo "Starting Tauri build..."
           npm run tauri build -- --verbose
+          echo "Build command completed"
+          echo "Checking target directory structure:"
+          ls -R src-tauri/target/
         env:
           RUST_BACKTRACE: full
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
           
       - name: Debug Build Output
+        if: always()
         run: |
           echo "Checking build output directories..."
           ls -la src-tauri/target/release/ || true
@@ -110,12 +126,22 @@ jobs:
           ls -la src-tauri/target/release/bundle/ || true
           echo "Checking macos directory..."
           ls -la src-tauri/target/release/bundle/macos/ || true
+          echo "Checking for build logs..."
+          find src-tauri/target -name "*.log" -exec cat {} \;
           
       - name: Create macOS ZIP
         run: |
-          cd src-tauri/target/release/bundle/macos
+          cd src-tauri/target/release/bundle/macos || {
+            echo "Failed to cd into macos bundle directory"
+            pwd
+            exit 1
+          }
+          echo "Contents of macos bundle directory:"
+          ls -la
           if [ ! -d "ROI Mailchimp Reporter.app" ]; then
             echo "Error: App bundle not found!"
+            echo "Found these files instead:"
+            ls -la
             exit 1
           fi
           zip -r ROIMailchimpReporter_macOS.zip ./"ROI Mailchimp Reporter.app"
