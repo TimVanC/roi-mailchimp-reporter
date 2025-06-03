@@ -29,9 +29,10 @@ dist-ssr
 .env.*
 !.env.example
 
-# Tauri
+# Rust
 src-tauri/target/
-src-tauri/Cargo.lock
+src-tauri/.fingerprint/
+src-tauri/.cargo/
 
 # Testing
 coverage/
