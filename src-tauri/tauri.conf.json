@@ -1,8 +1,5 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ROI Mailchimp Reporter",
-  "version": "1.0.1",
-  "identifier": "com.roi.mailchimp-reporter",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -10,6 +7,9 @@
     "distDir": "../dist"
   },
   "tauri": {
+    "productName": "ROI Mailchimp Reporter",
+    "version": "1.0.1",
+    "identifier": "com.roi.mailchimp-reporter",
     "windows": [
       {
         "title": "ROI Mailchimp Reporter",
@@ -24,53 +24,40 @@
     ],
     "bundle": {
       "active": true,
-      "identifier": "com.roi.mailchimp-reporter",
       "category": "DeveloperTool",
-      "copyright": "© 2024 ROI",
+      "copyright": "© 2024 ROI-NJ",
+      "targets": ["app", "dmg", "msi"],
+      "publisher": "ROI-NJ",
+      "identifier": "com.roi.mailchimp-reporter",
       "icon": [
+        "icons/roi-icon.png",
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "resources": [],
-      "targets": ["dmg", "msi", "deb", "appimage"]
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "10.13",
+        "exceptionDomain": "",
+        "signingIdentity": null,
+        "entitlements": null
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "http://timestamp.digicert.com",
+        "webviewInstallMode": {
+          "type": "downloadBootstrapper"
+        }
+      }
     },
     "security": {
       "csp": null
     }
   },
-  "bundle": {
-    "active": true,
-    "category": "DeveloperTool",
-    "copyright": "© 2024 ROI-NJ",
-    "targets": ["app", "dmg", "msi"],
-    "publisher": "ROI-NJ",
-    "icon": [
-      "icons/roi-icon.png",
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "macOS": {
-      "frameworks": [],
-      "minimumSystemVersion": "10.13",
-      "exceptionDomain": "",
-      "signingIdentity": null,
-      "entitlements": null
-    },
-    "windows": {
-      "certificateThumbprint": null,
-      "digestAlgorithm": "sha256",
-      "timestampUrl": "http://timestamp.digicert.com",
-      "webviewInstallMode": {
-        "type": "downloadBootstrapper"
-      }
-    }
-  },
   "plugins": {
-    "dialog": null,
-    "shell": null,
     "updater": {
       "active": true,
       "dialog": true,
