@@ -136,18 +136,34 @@ jobs:
           echo "Frontend build complete"
           ls -la dist/
           
+      - name: Install Tauri CLI
+        run: |
+          echo "Installing Tauri CLI..."
+          # Create a temporary directory for Tauri CLI installation
+          mkdir -p /tmp/tauri-cli
+          cd /tmp/tauri-cli
+          # Initialize a new Cargo project
+          cargo init --bin
+          # Add tauri-cli as a dependency
+          cargo add tauri-cli@2.0.0-beta.9 --locked
+          # Build it
+          cargo build --release
+          # Copy the binary to a location in PATH
+          sudo cp target/release/tauri-cli /usr/local/bin/tauri-cli
+          cd -
+          echo "Tauri CLI installed successfully"
+          tauri-cli --version || true
+          
       - name: Build Tauri App
         run: |
           echo "Starting Tauri build..."
-          cargo install tauri-cli@2.0.0-beta.9 --locked --force
-          echo "Installed Tauri CLI"
           cd src-tauri
           echo "Building release..."
           CARGO_NET_GIT_FETCH_WITH_CLI=true cargo build --release --verbose
           echo "Cargo build complete"
           cd ..
           echo "Running Tauri build..."
-          CARGO_TERM_VERBOSE=true npm run tauri build -- --verbose
+          CARGO_TERM_VERBOSE=true tauri-cli build --verbose
         env:
           RUST_BACKTRACE: full
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
@@ -155,6 +171,7 @@ jobs:
           MACOSX_DEPLOYMENT_TARGET: "10.13"
           CARGO_NET_GIT_FETCH_WITH_CLI: "true"
           CARGO_TERM_COLOR: always
+          CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG: true
           
       - name: Debug Build Output
         if: always()
