@@ -41,13 +41,27 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm list
         
+      - name: Check Rust setup
+        run: |
+          rustc --version
+          cargo --version
+          
       - name: Build
-        run: npm run tauri build
+        run: |
+          echo "Starting Tauri build..."
+          npm run tauri build -- --verbose
         env:
+          RUST_BACKTRACE: 1
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          
+      - name: List build artifacts
+        run: |
+          dir src-tauri\target\release\bundle\msi\
           
       - name: Upload Windows Build
         uses: softprops/action-gh-release@v1
@@ -69,14 +83,28 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         
+      - name: Check Rust setup
+        run: |
+          rustc --version
+          cargo --version
+          
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install
+          npm list
         
       - name: Build
-        run: npm run tauri build
+        run: |
+          echo "Starting Tauri build..."
+          npm run tauri build -- --verbose
         env:
+          RUST_BACKTRACE: 1
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          
+      - name: List build artifacts
+        run: |
+          ls -la src-tauri/target/release/bundle/macos/
           
       - name: Create macOS ZIP
         run: |
