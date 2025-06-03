@@ -6,10 +6,11 @@
     "devPath": "http://localhost:1423",
     "distDir": "../dist"
   },
-  "tauri": {
+  "package": {
     "productName": "ROI Mailchimp Reporter",
-    "version": "1.0.1",
-    "identifier": "com.roi.mailchimp-reporter",
+    "version": "1.0.1"
+  },
+  "tauri": {
     "windows": [
       {
         "title": "ROI Mailchimp Reporter",
@@ -24,11 +25,11 @@
     ],
     "bundle": {
       "active": true,
+      "identifier": "com.roi.mailchimp-reporter",
       "category": "DeveloperTool",
       "copyright": "© 2024 ROI-NJ",
       "targets": ["app", "dmg", "msi"],
       "publisher": "ROI-NJ",
-      "identifier": "com.roi.mailchimp-reporter",
       "icon": [
         "icons/roi-icon.png",
         "icons/32x32.png",
