@@ -42,18 +42,18 @@ jobs:
         run: npm ci
 
       - name: Install Tauri CLI
-        run: cargo install tauri-cli --version 1.5.4
+        run: npm install -g @tauri-apps/cli@1.5.4
 
       - name: Build frontend
         run: npm run build
 
       - name: Build Tauri app (macOS)
         if: matrix.platform == 'macos-latest'
-        run: cargo tauri build --target x86_64-apple-darwin
+        run: npx tauri build --target x86_64-apple-darwin
 
       - name: Build Tauri app (Windows)
         if: matrix.platform == 'windows-latest'
-        run: cargo tauri build --target x86_64-pc-windows-msvc
+        run: npx tauri build --target x86_64-pc-windows-msvc
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
