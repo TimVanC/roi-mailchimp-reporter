@@ -59,17 +59,17 @@
   },
   "plugins": {
     "dialog": null,
-    "shell": null
-  },
-  "updater": {
-    "active": true,
-    "dialog": true,
-    "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgzQUFBODA2RDI5QjQ5QkMKUldTOFNadlNCcWlxZ3ptZnpMSGNHdGZ0UCsvQkExRmE5U3NXbUw5MUVHSEdvRCtwMHJ6MGlwckgK",
-    "endpoints": [
-      "https://raw.githubusercontent.com/TimVanC/roi-mailchimp-reporter/main/updates.json"
-    ],
-    "windows": {
-      "installMode": "passive"
+    "shell": null,
+    "updater": {
+      "active": true,
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgzQUFBODA2RDI5QjQ5QkMKUldTOFNadlNCcWlxZ3ptZnpMSGNHdGZ0UCsvQkExRmE5U3NXbUw5MUVHSEdvRCtwMHJ6MGlwckgK",
+      "endpoints": [
+        "https://raw.githubusercontent.com/TimVanC/roi-mailchimp-reporter/main/updates.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }
