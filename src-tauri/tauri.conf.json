@@ -11,7 +11,11 @@
   },
   "app": {
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["**"]
+      }
     },
     "windows": [
       {
@@ -30,8 +34,8 @@
   "bundle": {
     "active": true,
     "category": "DeveloperTool",
-    "copyright": "",
-    "targets": "msi",
+    "copyright": "© 2024 ROI-NJ",
+    "targets": ["dmg", "app", "msi"],
     "publisher": "ROI-NJ",
     "icon": [
       "icons/roi-icon.png",
@@ -45,10 +49,19 @@
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
       "timestampUrl": "http://timestamp.digicert.com"
+    },
+    "macOS": {
+      "frameworks": [],
+      "minimumSystemVersion": "10.13",
+      "exceptionDomain": "",
+      "signingIdentity": null,
+      "entitlements": null
     }
   },
   "plugins": {
     "dialog": null,
-    "shell": null
+    "shell": {
+      "open": true
+    }
   }
 }
