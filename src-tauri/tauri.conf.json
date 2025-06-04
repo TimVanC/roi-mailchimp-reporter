@@ -1,19 +1,60 @@
 {
   "$schema": "https://schema.tauri.app/config/1",
-  "productName": "ROI Mailchimp Reporter",
-  "version": "1.0.1",
-  "identifier": "com.roi.mailchimp-reporter",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
     "devPath": "http://localhost:1420",
     "distDir": "../dist"
   },
-  "package": {
-    "productName": "ROI Mailchimp Reporter",
-    "version": "1.0.1"
-  },
   "tauri": {
+    "bundle": {
+      "active": true,
+      "targets": ["app", "dmg", "msi"],
+      "identifier": "com.roi.mailchimp-reporter",
+      "icon": [
+        "icons/32x32.png",
+        "icons/128x128.png",
+        "icons/128x128@2x.png",
+        "icons/icon.icns",
+        "icons/icon.ico"
+      ],
+      "resources": [],
+      "externalBin": [],
+      "copyright": "© 2024 ROI-NJ",
+      "category": "DeveloperTool",
+      "shortDescription": "",
+      "longDescription": "",
+      "deb": {
+        "depends": []
+      },
+      "macOS": {
+        "frameworks": [],
+        "minimumSystemVersion": "10.13",
+        "exceptionDomain": "",
+        "signingIdentity": null,
+        "entitlements": null
+      },
+      "windows": {
+        "certificateThumbprint": null,
+        "digestAlgorithm": "sha256",
+        "timestampUrl": "http://timestamp.digicert.com",
+        "webviewInstallMode": {
+          "type": "downloadBootstrapper"
+        }
+      }
+    },
+    "security": {
+      "csp": null
+    },
+    "windows": [
+      {
+        "fullscreen": false,
+        "resizable": true,
+        "title": "ROI Mailchimp Reporter",
+        "width": 800,
+        "height": 600
+      }
+    ],
     "allowlist": {
       "all": false,
       "shell": {
@@ -28,30 +69,6 @@
         "scope": ["**"]
       }
     },
-    "bundle": {
-      "active": true,
-      "targets": "all",
-      "identifier": "com.roi.mailchimp-reporter",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ]
-    },
-    "security": {
-      "csp": null
-    },
-    "windows": [
-      {
-        "fullscreen": false,
-        "resizable": true,
-        "title": "ROI Mailchimp Reporter",
-        "width": 800,
-        "height": 600
-      }
-    ],
     "updater": {
       "active": true,
       "endpoints": [
@@ -59,36 +76,6 @@
       ],
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgzQUFBODA2RDI5QjQ5QkMKUldTOFNadlNCcWlxZ3ptZnpMSGNHdGZ0UCsvQkExRmE5U3NXbUw5MUVHSEdvRCtwMHJ6MGlwckgK"
-    }
-  },
-  "bundle": {
-    "active": true,
-    "category": "DeveloperTool",
-    "copyright": "© 2024 ROI-NJ",
-    "targets": ["app", "dmg", "msi"],
-    "publisher": "ROI-NJ",
-    "icon": [
-      "icons/roi-icon.png",
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "macOS": {
-      "frameworks": [],
-      "minimumSystemVersion": "10.13",
-      "exceptionDomain": "",
-      "signingIdentity": null,
-      "entitlements": null
-    },
-    "windows": {
-      "certificateThumbprint": null,
-      "digestAlgorithm": "sha256",
-      "timestampUrl": "http://timestamp.digicert.com",
-      "webviewInstallMode": {
-        "type": "downloadBootstrapper"
-      }
     }
   }
 }
