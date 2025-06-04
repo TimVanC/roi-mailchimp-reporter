@@ -15,6 +15,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import roiLogo from './assets/ROI-white-logo.png';
 import { useReportStore } from './store/reportStore';
+import { Updater } from './components/Updater';
 
 // Import our page components that represent the main sections of the app
 import RunReport from './pages/RunReport';  // Report generation interface
@@ -107,38 +108,41 @@ const Navigation = () => {
  */
 const App = () => {
   return (
-    <ThemeProvider theme={theme}>
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
-        <Router>
-          <div className="min-h-screen bg-background flex flex-col">
-            {/* Header section with logo and navigation */}
-            <header className="bg-header shadow-lg">
-              <div className="container mx-auto px-6 py-6 flex justify-between items-center">
-                <div className="flex items-center space-x-16">
-                  <img 
-                    src={roiLogo}
-                    alt="ROI Logo" 
-                    className="h-[50px] w-auto"
-                  />
-                  <Navigation />
+    <>
+      <Updater />
+      <ThemeProvider theme={theme}>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <Router>
+            <div className="min-h-screen bg-background flex flex-col">
+              {/* Header section with logo and navigation */}
+              <header className="bg-header shadow-lg">
+                <div className="container mx-auto px-6 py-6 flex justify-between items-center">
+                  <div className="flex items-center space-x-16">
+                    <img 
+                      src={roiLogo}
+                      alt="ROI Logo" 
+                      className="h-[50px] w-auto"
+                    />
+                    <Navigation />
+                  </div>
                 </div>
-              </div>
-            </header>
+              </header>
 
-            {/* Main content area with responsive container */}
-            <main className="flex-1 container mx-auto px-6 pt-2 pb-4 mt-6">
-              <div className="bg-white rounded-lg shadow-sm px-8 pt-4 pb-8 max-w-3xl mx-auto">
-                <Routes>
-                  <Route path="/" element={<RunReport />} />
-                  <Route path="/reports" element={<Reports />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Routes>
-              </div>
-            </main>
-          </div>
-        </Router>
-      </LocalizationProvider>
-    </ThemeProvider>
+              {/* Main content area with responsive container */}
+              <main className="flex-1 container mx-auto px-6 pt-2 pb-4 mt-6">
+                <div className="bg-white rounded-lg shadow-sm px-8 pt-4 pb-8 max-w-3xl mx-auto">
+                  <Routes>
+                    <Route path="/" element={<RunReport />} />
+                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Routes>
+                </div>
+              </main>
+            </div>
+          </Router>
+        </LocalizationProvider>
+      </ThemeProvider>
+    </>
   );
 };
 
