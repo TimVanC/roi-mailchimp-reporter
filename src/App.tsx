@@ -17,6 +17,7 @@ import roiLogo from './assets/ROI-white-logo.png';
 import { useReportStore } from './store/reportStore';
 import { getVersion } from '@tauri-apps/api/app';
 import { checkUpdate, installUpdate } from '@tauri-apps/api/updater';
+import { exit } from '@tauri-apps/api/process';
 import { useEffect, useState } from 'react';
 
 // Import our page components that represent the main sections of the app
@@ -109,18 +110,23 @@ const Navigation = () => {
  * - Route-based content rendering
  */
 const App = () => {
-  const [version, setVersion] = useState<string>('');
+  const [appVersion, setAppVersion] = useState<string>('');
 
   useEffect(() => {
-    getVersion().then(setVersion);
+    getVersion().then(setAppVersion);
 
     // Check for updates
     const checkForUpdates = async () => {
       try {
         const update = await checkUpdate();
-        if (update.available) {
-          // The dialog will be shown automatically since we set dialog: true in config
+        if (update.shouldUpdate) {
+          console.log(`Update available: ${update.manifest?.version}`);
+          
+          // Install the update
           await installUpdate();
+          
+          // Restart the app
+          await exit(0);
         }
       } catch (error) {
         console.error('Error checking for updates:', error);
@@ -148,7 +154,7 @@ const App = () => {
                 </div>
                 {/* Version display */}
                 <div className="absolute top-2 right-4 text-sm text-gray-600">
-                  v{version}
+                  v{appVersion}
                 </div>
               </div>
             </header>

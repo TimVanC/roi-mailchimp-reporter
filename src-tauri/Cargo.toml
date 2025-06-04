@@ -39,4 +39,6 @@ opener = "0.6.1"
 dirs = "5.0"
 base64 = "0.21"
 url = "2.4"
+tauri-plugin-process = "2.2.1"
+tauri-plugin-app = "2.0.0-alpha.2"
 
