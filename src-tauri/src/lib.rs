@@ -5,7 +5,8 @@ use reqwest;
 use std::io::Write;
 use std::fs::File;
 use tauri::Emitter;
-use base64;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use url::Url;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -451,7 +452,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     let campaigns_response = client
         .get(&campaigns_url)
-        .header("Authorization", format!("Basic {}", base64::encode(format!("anystring:{}", settings.mailchimp_api_key))))
+        .header("Authorization", format!("Basic {}", STANDARD.encode(format!("anystring:{}", settings.mailchimp_api_key))))
         .send()
         .await
         .map_err(|e| format!("Failed to fetch campaigns: {}", e))?;
@@ -625,7 +626,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         // Get click details
         let click_response = client
             .get(&click_url)
-            .header("Authorization", format!("Basic {}", base64::encode(format!("anystring:{}", settings.mailchimp_api_key))))
+            .header("Authorization", format!("Basic {}", STANDARD.encode(format!("anystring:{}", settings.mailchimp_api_key))))
             .send()
             .await;
         
@@ -938,7 +939,7 @@ fn opener_open(_app: tauri::AppHandle, path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<String, String> {
+fn download_report(app: tauri::AppHandle, report_data: serde_json::Value) -> Result<String, String> {
     // Create a timestamp for the file name
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S").to_string();
     
@@ -962,7 +963,7 @@ fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<S
     }
     
     // Create a file name with the report name if available
-    let report_name = report.get("name")
+    let report_name = report_data.get("name")
         .and_then(|v| v.as_str())
         .unwrap_or("report");
     
@@ -973,7 +974,7 @@ fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<S
     println!("Writing JSON report to: '{}'", file_path.display());
     
     // Serialize report to JSON
-    let report_json = serde_json::to_string_pretty(&report)
+    let report_json = serde_json::to_string_pretty(&report_data)
         .map_err(|e| format!("Failed to serialize report: {}", e))?;
 
     // Write to file
@@ -993,9 +994,9 @@ fn download_report(app: tauri::AppHandle, report: serde_json::Value) -> Result<S
 }
 
 #[tauri::command]
-fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<String, String> {
+fn download_csv(app: tauri::AppHandle, report_data: serde_json::Value) -> Result<String, String> {
     // Extract report data for CSV content
-    let report_data = reportData.get("data")
+    let report_data = report_data.get("data")
         .ok_or_else(|| "Invalid report format: missing data field".to_string())?;
     
     // Get selected metrics from the report data
@@ -1015,16 +1016,16 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
     }
     
     // Extract report metadata for filename
-    let advertiser = reportData.get("advertiser")
+    let advertiser = report_data.get("advertiser")
         .and_then(|v| v.as_str())
         .unwrap_or("unknown-advertiser");
     
-    let newsletter_type = reportData.get("report_type")
+    let newsletter_type = report_data.get("report_type")
         .and_then(|v| v.as_str())
         .unwrap_or("unknown-type");
     
     // Extract date range for filename
-    let date_range = if let Some(range) = reportData.get("date_range") {
+    let date_range = if let Some(range) = report_data.get("date_range") {
         let start = range.get("start_date")
             .and_then(|d| d.as_str())
             .unwrap_or("");
