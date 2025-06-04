@@ -524,16 +524,15 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     }
     
     // 40% progress
-    let processing_start_update = ProgressUpdate {
+    let initial_processing_update = ProgressUpdate {
         stage: "ProcessingCampaigns".to_string(),
         progress: 40,
-        message: format!("Found {} matching campaigns. Processing details...", filtered_campaigns.len()),
-        time_remaining: Some((filtered_campaigns.len() as f64 * 0.75) as u64), // Estimate 0.75 seconds per campaign
+        message: format!("Processing {} campaigns...", filtered_campaigns.len()),
+        time_remaining: Some((filtered_campaigns.len() as f64 * 0.5) as u64), // Initial estimate: 0.5 seconds per campaign
     };
     
-    // Store and emit update
-    progress_updates.push(processing_start_update.clone());
-    if let Err(e) = app.emit("report-progress", processing_start_update) {
+    progress_updates.push(initial_processing_update.clone());
+    if let Err(e) = app.emit("report-progress", initial_processing_update) {
         println!("Failed to emit progress update: {}", e);
     }
     
@@ -558,13 +557,34 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
             let avg_time_per_campaign = elapsed / (index as f64);
             // Calculate remaining campaigns
             let remaining_campaigns = filtered_campaigns.len() - index;
-            // Estimate remaining time plus 20% buffer for final processing
-            let remaining_secs = (avg_time_per_campaign * (remaining_campaigns as f64)) * 1.2;
+            // Estimate remaining time
+            let remaining_secs = avg_time_per_campaign * (remaining_campaigns as f64);
             Some(remaining_secs.ceil() as u64)
         } else {
-            // Initial estimate for first campaign
-            Some((filtered_campaigns.len() as f64 * 0.75) as u64)
+            // Initial estimate
+            Some((filtered_campaigns.len() as f64 * 0.5) as u64)
         };
+        
+        // Add progress update for individual campaign
+        let campaign_update = ProgressUpdate {
+            stage: "ProcessingCampaigns".to_string(),
+            progress: current_progress,
+            message: format!("Processing campaign {} of {}: {}", 
+                index + 1, 
+                filtered_campaigns.len(),
+                campaign.get("settings")
+                    .and_then(|s| s.get("title"))
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("Untitled")
+            ),
+            time_remaining,
+        };
+        
+        // Store and emit update
+        progress_updates.push(campaign_update.clone());
+        if let Err(e) = app.emit("report-progress", campaign_update) {
+            println!("Failed to emit progress update: {}", e);
+        }
         
         // Extract campaign ID and metrics
         let campaign_id = match campaign.get("id").and_then(|id| id.as_str()) {
@@ -577,32 +597,6 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
             Some(time) => time,
             None => continue, // Skip if no send time
         };
-        
-        // Add progress update for individual campaign
-        let campaign_update = ProgressUpdate {
-            stage: "ProcessingCampaigns".to_string(),
-            progress: current_progress,
-            message: format!("Processing campaign {} of {} ({})", 
-                index + 1, 
-                filtered_campaigns.len(),
-                campaign.get("settings")
-                    .and_then(|s| s.get("title"))
-                    .and_then(|t| t.as_str())
-                    .unwrap_or("Untitled")
-            ),
-            time_remaining,
-        };
-        
-        // Store and emit update - emit every campaign or every few campaigns
-        progress_updates.push(campaign_update.clone());
-        
-        // For larger batches, don't emit every single update to reduce network traffic
-        // For example, emit every 5th update, or when progress crosses a percentage threshold
-        if index % 3 == 0 || index == filtered_campaigns.len() - 1 {
-            if let Err(e) = app.emit("report-progress", campaign_update) {
-                println!("Failed to emit progress update: {}", e);
-            }
-        }
         
         // Format date as in Python script
         let formatted_date = match chrono::DateTime::parse_from_rfc3339(send_time) {

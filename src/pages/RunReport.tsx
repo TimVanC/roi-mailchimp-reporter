@@ -172,29 +172,69 @@ const RunReport = () => {
     setupSettingsListener();
   }, []);
 
+  // Set up progress event listener
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+
+    const setupProgressListener = async () => {
+      try {
+        unsubscribe = await listen<ProgressUpdate>('report-progress', (event) => {
+          const update = event.payload;
+          console.log('Progress update received:', update);
+          
+          // Update the progress in the store
+          const progressUpdate = {
+            stage: update.stage,
+            percentage: update.progress,
+            message: update.message,
+            timeRemaining: update.time_remaining
+          };
+          
+          useReportStore.getState().setProgress(progressUpdate);
+        });
+      } catch (error) {
+        console.error('Failed to set up progress listener:', error);
+      }
+    };
+
+    setupProgressListener();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []);
+
   /**
    * Formats the remaining time into a human-readable string
    * Converts seconds into minutes:seconds format when appropriate
    */
   const formatTimeRemaining = (seconds: number | null): string => {
     if (seconds === null || seconds === undefined) {
-      return 'Calculating time remaining...';
+      return 'Initializing...';
     }
     
     if (seconds === 0) {
-      return 'Almost done...';
+      return 'Finishing up...';
     }
     
     if (seconds < 60) {
-      return `About ${Math.ceil(seconds)} seconds remaining`;
-    } else {
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = Math.round(seconds % 60);
-      if (minutes === 1) {
-        return `About 1 minute ${remainingSeconds > 0 ? `and ${remainingSeconds} seconds` : ''} remaining`;
-      }
-      return `About ${minutes} minutes ${remainingSeconds > 0 ? `and ${remainingSeconds} seconds` : ''} remaining`;
+      return `${Math.ceil(seconds)} seconds remaining`;
     }
+    
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    
+    if (minutes === 1) {
+      return remainingSeconds > 0 
+        ? `1 minute ${remainingSeconds} seconds remaining`
+        : '1 minute remaining';
+    }
+    
+    return remainingSeconds > 0
+      ? `${minutes} minutes ${remainingSeconds} seconds remaining`
+      : `${minutes} minutes remaining`;
   };
 
   /**
@@ -942,9 +982,7 @@ const RunReport = () => {
             <Box sx={{ mt: 4, mb: 2 }}>
               <Box sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500 }}>
-                  {progress.currentCampaign > 0 && progress.totalCampaigns > 0 
-                    ? `Processing campaign ${progress.currentCampaign} of ${progress.totalCampaigns}` 
-                    : progress.message}
+                  {progress.message || 'Processing...'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {progress.percentage}%
@@ -960,6 +998,7 @@ const RunReport = () => {
                   '& .MuiLinearProgress-bar': {
                     backgroundColor: '#159581',
                     borderRadius: 4,
+                    transition: 'transform 0.2s linear'
                   }
                 }}
               />
@@ -968,9 +1007,9 @@ const RunReport = () => {
                 color="text.secondary" 
                 sx={{ 
                   display: 'block', 
-                  mt: 0.5, 
-                  textAlign: 'center', 
-                  fontStyle: 'italic' 
+                  mt: 1,
+                  textAlign: 'center',
+                  fontWeight: 500
                 }}
               >
                 {formatTimeRemaining(progress.timeRemaining)}

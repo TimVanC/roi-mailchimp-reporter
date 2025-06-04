@@ -21,8 +21,6 @@ interface ReportProgress {
   percentage: number;
   message: string;
   timeRemaining: number | null;
-  currentCampaign: number;
-  totalCampaigns: number;
 }
 
 interface ReportState {
@@ -32,7 +30,7 @@ interface ReportState {
   reports: Report[];
   setIsGenerating: (isGenerating: boolean) => void;
   setFormData: (formData: FormData | null) => void;
-  setProgress: (progress: ReportProgress) => void;
+  setProgress: (progress: Partial<ReportProgress>) => void;
   resetProgress: () => void;
   setReports: (reports: Report[]) => void;
   addReport: (report: Report) => void;
@@ -44,8 +42,6 @@ const initialProgress: ReportProgress = {
   percentage: 0,
   message: '',
   timeRemaining: null,
-  currentCampaign: 0,
-  totalCampaigns: 0,
 };
 
 export const useReportStore = create<ReportState>()(
@@ -63,9 +59,12 @@ export const useReportStore = create<ReportState>()(
         ...state,
         formData 
       })),
-      setProgress: (progress: ReportProgress) => set((state) => ({ 
+      setProgress: (progress: Partial<ReportProgress>) => set((state) => ({ 
         ...state,
-        progress 
+        progress: {
+          ...state.progress,
+          ...progress,
+        }
       })),
       resetProgress: () => set((state) => ({ 
         ...state,
