@@ -21,12 +21,12 @@ console.log('Generated public key:', publicKey);
 const configPath = path.join(__dirname, '../src-tauri/tauri.conf.json');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
-// Ensure tauri.updater section exists
-if (!config.tauri) {
-  config.tauri = {};
+// Ensure app.updater section exists
+if (!config.app) {
+  config.app = {};
 }
-if (!config.tauri.updater) {
-  config.tauri.updater = {
+if (!config.app.updater) {
+  config.app.updater = {
     active: true,
     dialog: true,
     endpoints: [
@@ -35,7 +35,7 @@ if (!config.tauri.updater) {
   };
 }
 
-config.tauri.updater.pubkey = publicKey;
+config.app.updater.pubkey = publicKey;
 
 fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
 console.log('Updated tauri.conf.json with public key'); 

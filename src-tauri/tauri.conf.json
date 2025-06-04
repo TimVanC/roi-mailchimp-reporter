@@ -71,7 +71,7 @@
       ]
     }
   },
-  "tauri": {
+  "app": {
     "updater": {
       "active": true,
       "endpoints": [
