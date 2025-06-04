@@ -96,10 +96,29 @@ fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
             }
         };
         
+        // Default advertisers list
+        let default_advertisers = vec![
+            "HBCB (Horizon Blue Cross Blue Shield)".to_string(),
+            "NJUA".to_string(),
+            "NJ American Water".to_string(),
+            "EisnerAmper".to_string(),
+            "Gibbons Law".to_string(),
+            "Valley Health Systems".to_string(),
+            "Withum".to_string(),
+            "Grassi".to_string(),
+            "ACG".to_string(),
+            "Local 825".to_string(),
+            "Mizuho".to_string(),
+            "Caucus".to_string(),
+            "MSU".to_string(),
+            "Jersey City Summit".to_string(),
+            "NJ Bankers".to_string(),
+        ];
+        
         return Ok(Settings {
             mailchimp_api_key: String::new(),
             mailchimp_audience_id: String::new(),
-            advertisers: Vec::new(),
+            advertisers: default_advertisers,
             download_directory: default_download_dir,
         });
     }
