@@ -6,61 +6,24 @@ on:
       - 'v*'
 
 jobs:
-  release:
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest]
-        include:
-          - os: macos-latest
-            artifact_name: ROI-Mailchimp-Reporter.app.tar.gz
-            platform: macos
-          - os: windows-latest
-            artifact_name: ROI-Mailchimp-Reporter.msi
-            platform: windows
-
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create_release.outputs.id }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-apple-darwin,x86_64-pc-windows-msvc
-          
-      - name: Install dependencies
-        run: npm install
-        
-      - name: Build
-        run: npm run tauri build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Sign and create update
-        run: |
-          tauri signer sign -w ~/.tauri/roi-mailchimp-reporter.key
-          tauri updater build
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
       - name: Create Release
+        id: create_release
         uses: softprops/action-gh-release@v1
-        if: matrix.os == 'macos-latest'
         with:
-          files: |
-            src-tauri/target/release/bundle/macos/ROI\ Mailchimp\ Reporter.app.tar.gz
-            src-tauri/target/release/bundle/macos/ROI\ Mailchimp\ Reporter_*.dmg
-            src-tauri/target/release/bundle/msi/ROI\ Mailchimp\ Reporter_*.msi
-            src-tauri/target/release/updater.json
+          draft: false
+          prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build-windows:
-    needs: release
+    needs: create-release
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -69,31 +32,32 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
           
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         
       - name: Build
-        run: npm run tauri build
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+        run: npm run tauri build
           
-      - name: Upload Windows Build
+      - name: Upload Windows MSI
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ./src-tauri/target/release/bundle/msi/ROI Mailchimp Reporter_${{ github.ref_name }}_x64_en-US.msi
           asset_name: ROIMailchimpReporter_Windows_x64.msi
           asset_content_type: application/x-msi
 
   build-macos:
-    needs: release
+    needs: [create-release, build-windows]
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -102,18 +66,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
           
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         
       - name: Build
-        run: npm run tauri build
         env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+        run: npm run tauri build
           
       - name: Create macOS ZIP
         run: |
@@ -125,13 +90,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.release.outputs.upload_url }}
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
           asset_path: ./src-tauri/target/release/bundle/macos/ROIMailchimpReporter_macOS.zip
           asset_name: ROIMailchimpReporter_macOS.zip
           asset_content_type: application/zip
 
-  update-manifest:
-    needs: [release, build-windows, build-macos]
+  generate-update-manifest:
+    needs: [build-windows, build-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -140,17 +105,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
           
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         
       - name: Generate update manifest
         run: node scripts/create-update.js
         
-      - name: Commit and push update manifest
-        run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action"
-          git add updates.json
-          git commit -m "Update release manifest for ${{ github.ref }}"
-          git push 
+      - name: Upload update manifest
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ./updates.json
+          asset_name: latest.json
+          asset_content_type: application/json 
