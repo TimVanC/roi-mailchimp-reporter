@@ -23,7 +23,10 @@ const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
 // Ensure app.updater section exists
 if (!config.app) {
-  config.app = {};
+  config.app = {
+    windows: [],
+    security: { csp: null }
+  };
 }
 if (!config.app.updater) {
   config.app.updater = {
