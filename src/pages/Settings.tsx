@@ -67,7 +67,23 @@ const Settings = () => {
   const [settings, setSettings] = useState<Settings>({
     mailchimp_api_key: '',
     mailchimp_audience_id: '',
-    advertisers: [],
+    advertisers: [
+      "ACG",
+      "Caucus",
+      "EisnerAmper",
+      "Gibbons Law",
+      "Grassi",
+      "HBCB (Horizon Blue Cross Blue Shield)",
+      "Jersey City Summit",
+      "Local 825",
+      "Mizuho",
+      "MSU",
+      "NJ American Water",
+      "NJ Bankers",
+      "NJUA",
+      "Valley Health Systems",
+      "Withum"
+    ],
     download_directory: '',
   });
   
@@ -104,9 +120,25 @@ const Settings = () => {
    */
   const loadSettings = async () => {
     try {
+      console.log('Starting to load settings...');
+      const settingsPath = await invoke<string>('get_settings_path');
+      console.log('Settings path:', settingsPath);
+      
       const loadedSettings = await invoke<Settings>('load_settings');
       console.log('Loaded settings:', loadedSettings);
-      setSettings(loadedSettings);
+      
+      // Only update advertisers if we got some from the backend
+      if (loadedSettings.advertisers && loadedSettings.advertisers.length > 0) {
+        // Sort advertisers alphabetically
+        loadedSettings.advertisers.sort((a, b) => a.localeCompare(b));
+        setSettings(loadedSettings);
+      } else {
+        // Keep the default advertisers but update other settings
+        setSettings(prev => ({
+          ...loadedSettings,
+          advertisers: prev.advertisers
+        }));
+      }
     } catch (error) {
       console.error('Error loading settings:', error);
       setSnackbar({

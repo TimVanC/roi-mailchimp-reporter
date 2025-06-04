@@ -100,7 +100,23 @@ interface GenerateReportResponse {
  */
 const RunReport = () => {
   const [snackbar, setSnackbar] = useState<SnackbarState>({ open: false, message: '', severity: 'info' });
-  const [advertisers, setAdvertisers] = useState<string[]>([]);
+  const [advertisers, setAdvertisers] = useState<string[]>([
+    "ACG",
+    "Caucus",
+    "EisnerAmper",
+    "Gibbons Law",
+    "Grassi",
+    "HBCB (Horizon Blue Cross Blue Shield)",
+    "Jersey City Summit",
+    "Local 825",
+    "Mizuho",
+    "MSU",
+    "NJ American Water",
+    "NJ Bankers",
+    "NJUA",
+    "Valley Health Systems",
+    "Withum"
+  ]);
   const [trackingUrls, setTrackingUrls] = useState<string[]>(['']);
   
   // Get state and actions from the global store
@@ -246,13 +262,14 @@ const RunReport = () => {
       const settings = await invoke<Settings>('load_settings');
       console.log('Loaded settings in RunReport:', settings);
       
-      // Check if advertisers have changed before updating state
-      if (JSON.stringify(settings.advertisers) !== JSON.stringify(advertisers)) {
-        console.log('Advertisers have changed, updating state...');
-        setAdvertisers(settings.advertisers);
+      // Only update advertisers if we got some from the backend
+      if (settings.advertisers && settings.advertisers.length > 0) {
+        // Sort advertisers alphabetically
+        const sortedAdvertisers = [...settings.advertisers].sort((a, b) => a.localeCompare(b));
+        setAdvertisers(sortedAdvertisers);
       }
       
-      console.log('Advertisers set to:', settings.advertisers);
+      console.log('Advertisers set to:', advertisers);
     } catch (error) {
       console.error('Failed to load settings in RunReport:', error);
     }
