@@ -71,12 +71,14 @@
       ]
     }
   },
-  "updater": {
-    "active": true,
-    "endpoints": [
-      "https://github.com/TimVanC/roi-mailchimp-reporter/releases/latest/download/latest.json"
-    ],
-    "dialog": true,
-    "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERGNDA5RTExMjgwNDVFMTUKUldRVlhnUW9FWjVBM3dWZFJjdmdDMDhZTGdEYldmTUpnaUxMeHJwNXJ2L1laelBraVZuS1JNN0QK"
+  "tauri": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/TimVanC/roi-mailchimp-reporter/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERGNDA5RTExMjgwNDVFMTUKUldRVlhnUW9FWjVBM3dWZFJjdmdDMDhZTGdEYldmTUpnaUxMeHJwNXJ2L1laelBraVZuS1JNN0QK"
+    }
   }
 }
