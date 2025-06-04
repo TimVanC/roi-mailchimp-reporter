@@ -15,6 +15,8 @@ import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import roiLogo from './assets/ROI-white-logo.png';
 import { useReportStore } from './store/reportStore';
+import { getVersion } from '@tauri-apps/api/app';
+import { useEffect, useState } from 'react';
 
 // Import our page components that represent the main sections of the app
 import RunReport from './pages/RunReport';  // Report generation interface
@@ -106,6 +108,12 @@ const Navigation = () => {
  * - Route-based content rendering
  */
 const App = () => {
+  const [version, setVersion] = useState<string>('');
+
+  useEffect(() => {
+    getVersion().then(setVersion);
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <LocalizationProvider dateAdapter={AdapterDayjs}>
@@ -121,6 +129,10 @@ const App = () => {
                     className="h-[50px] w-auto"
                   />
                   <Navigation />
+                </div>
+                {/* Version display */}
+                <div className="absolute top-2 right-4 text-sm text-gray-600">
+                  v{version}
                 </div>
               </div>
             </header>
