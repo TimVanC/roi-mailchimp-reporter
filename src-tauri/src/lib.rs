@@ -157,10 +157,7 @@ fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string(),
-                mailchimp_audience_id: json_value.get("mailchimp_audience_id")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("6732b2b110")
-                    .to_string(),
+                mailchimp_audience_id: "6732b2b110".to_string(),
                 advertisers: json_value.get("advertisers")
                     .and_then(|v| v.as_array())
                     .map(|arr| {
@@ -1155,6 +1152,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_updater::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             load_settings,

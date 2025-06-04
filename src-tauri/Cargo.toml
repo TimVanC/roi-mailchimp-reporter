@@ -1,6 +1,6 @@
 [package]
 name = "roi-mailchimp-reporter"
-version = "1.0.49"
+version = "1.0.50"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -25,6 +25,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [
     "protocol-asset"
 ] }
+tauri-plugin-updater = "2"
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
 tauri-plugin-shell = "2"
