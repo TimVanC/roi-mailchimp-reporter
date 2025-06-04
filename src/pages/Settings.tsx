@@ -66,7 +66,7 @@ const Settings = () => {
   // Primary settings state with type-safe default values
   const [settings, setSettings] = useState<Settings>({
     mailchimp_api_key: '',
-    mailchimp_audience_id: '',
+    mailchimp_audience_id: '6732b2b110',
     advertisers: [
       "ACG",
       "Caucus",

@@ -81,6 +81,8 @@ fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
     let settings_path = app_dir.join("settings.json");
     
     println!("Loading settings from: {:?}", settings_path);
+    println!("App config directory: {:?}", app_dir);
+    println!("Settings file exists: {}", settings_path.exists());
 
     if !settings_path.exists() {
         println!("Settings file does not exist, returning default settings");
@@ -115,12 +117,15 @@ fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
             "NJ Bankers".to_string(),
         ];
         
-        return Ok(Settings {
+        let settings = Settings {
             mailchimp_api_key: String::new(),
-            mailchimp_audience_id: String::new(),
+            mailchimp_audience_id: "6732b2b110".to_string(),
             advertisers: default_advertisers,
             download_directory: default_download_dir,
-        });
+        };
+        
+        println!("Returning default settings: {:?}", settings);
+        return Ok(settings);
     }
 
     let settings_str = fs::read_to_string(&settings_path)
