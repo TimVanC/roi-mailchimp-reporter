@@ -127,18 +127,16 @@ const Settings = () => {
       const loadedSettings = await invoke<Settings>('load_settings');
       console.log('Loaded settings:', loadedSettings);
       
-      // Only update advertisers if we got some from the backend
-      if (loadedSettings.advertisers && loadedSettings.advertisers.length > 0) {
-        // Sort advertisers alphabetically
-        loadedSettings.advertisers.sort((a, b) => a.localeCompare(b));
-        setSettings(loadedSettings);
-      } else {
-        // Keep the default advertisers but update other settings
-        setSettings(prev => ({
-          ...loadedSettings,
-          advertisers: prev.advertisers
-        }));
-      }
+      // Preserve default values if loaded settings are empty
+      const updatedSettings = {
+        ...loadedSettings,
+        mailchimp_audience_id: loadedSettings.mailchimp_audience_id || '6732b2b110',
+        advertisers: loadedSettings.advertisers?.length > 0 
+          ? loadedSettings.advertisers.sort((a, b) => a.localeCompare(b))
+          : settings.advertisers
+      };
+      
+      setSettings(updatedSettings);
     } catch (error) {
       console.error('Error loading settings:', error);
       setSnackbar({

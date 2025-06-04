@@ -159,7 +159,7 @@ fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
                     .to_string(),
                 mailchimp_audience_id: json_value.get("mailchimp_audience_id")
                     .and_then(|v| v.as_str())
-                    .unwrap_or("")
+                    .unwrap_or("6732b2b110")
                     .to_string(),
                 advertisers: json_value.get("advertisers")
                     .and_then(|v| v.as_array())
