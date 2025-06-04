@@ -16,6 +16,7 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import roiLogo from './assets/ROI-white-logo.png';
 import { useReportStore } from './store/reportStore';
 import { getVersion } from '@tauri-apps/api/app';
+import { checkUpdate, installUpdate } from '@tauri-apps/api/updater';
 import { useEffect, useState } from 'react';
 
 // Import our page components that represent the main sections of the app
@@ -112,6 +113,21 @@ const App = () => {
 
   useEffect(() => {
     getVersion().then(setVersion);
+
+    // Check for updates
+    const checkForUpdates = async () => {
+      try {
+        const update = await checkUpdate();
+        if (update.available) {
+          // The dialog will be shown automatically since we set dialog: true in config
+          await installUpdate();
+        }
+      } catch (error) {
+        console.error('Error checking for updates:', error);
+      }
+    };
+
+    checkForUpdates();
   }, []);
 
   return (
