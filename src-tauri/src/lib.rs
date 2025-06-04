@@ -5,7 +5,7 @@ use reqwest;
 use std::io::Write;
 use std::fs::File;
 use tauri::Emitter;
-use base64;
+use base64::{Engine as _, engine::general_purpose::STANDARD};
 use url::Url;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -472,7 +472,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     let campaigns_response = client
         .get(&campaigns_url)
-        .header("Authorization", format!("Basic {}", base64::encode(format!("anystring:{}", settings.mailchimp_api_key))))
+        .header("Authorization", format!("Basic {}", STANDARD.encode(format!("anystring:{}", settings.mailchimp_api_key))))
         .send()
         .await
         .map_err(|e| format!("Failed to fetch campaigns: {}", e))?;
@@ -640,7 +640,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         // Get click details
         let click_response = client
             .get(&click_url)
-            .header("Authorization", format!("Basic {}", base64::encode(format!("anystring:{}", settings.mailchimp_api_key))))
+            .header("Authorization", format!("Basic {}", STANDARD.encode(format!("anystring:{}", settings.mailchimp_api_key))))
             .send()
             .await;
         
@@ -1152,7 +1152,6 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .plugin(tauri_plugin_updater::init())
         .invoke_handler(tauri::generate_handler![
             greet,
             load_settings,
