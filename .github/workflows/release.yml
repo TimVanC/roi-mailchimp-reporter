@@ -10,6 +10,7 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
       release_id: ${{ steps.create_release.outputs.id }}
     steps:
       - uses: actions/checkout@v4
@@ -77,13 +78,27 @@ jobs:
           }
           $latestJson | ConvertTo-Json -Depth 10 | Out-File -FilePath latest.json
 
+      - name: Find MSI file
+        if: matrix.platform == 'windows-latest'
+        shell: pwsh
+        run: |
+          $msiFile = Get-ChildItem -Path "src-tauri/target/release/bundle/msi/*.msi" | Select-Object -First 1
+          echo "MSI_PATH=$($msiFile.FullName)" >> $env:GITHUB_ENV
+
+      - name: Find DMG file
+        if: matrix.platform == 'macos-latest'
+        shell: bash
+        run: |
+          DMG_FILE=$(ls src-tauri/target/release/bundle/dmg/*.dmg | head -n 1)
+          echo "DMG_PATH=$DMG_FILE" >> $GITHUB_ENV
+
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: src-tauri/${{ matrix.output_path }}
+          asset_path: ${{ matrix.platform == 'windows-latest' && env.MSI_PATH || env.DMG_PATH }}
           asset_name: ${{ matrix.platform == 'windows-latest' && format('ROI.Mailchimp.Reporter_{0}_x64_en-US.msi', github.ref_name) || format('ROI.Mailchimp.Reporter_{0}_x64.dmg', github.ref_name) }}
           asset_content_type: ${{ matrix.asset_type }}
 
