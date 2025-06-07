@@ -1,0 +1,54 @@
+name: Release Windows
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-windows-release:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build the app
+        run: npm run tauri build
+
+      - name: Generate latest.json
+        run: |
+          $version = (Get-Content -Raw -Path package.json | ConvertFrom-Json).version
+          $msiName = "ROI.Mailchimp.Reporter_${version}_x64_en-US.msi"
+          $latestJson = @{
+            version = $version
+            notes = "Release $version"
+            pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhFOUVGMTUyRjg4RTRDREQKUldUZFRJNzRVdkdlanNCZTUrT1ZyTWk3YXViQUNzWGVTRXhmWDRYdWx2MUMyTmF1Skp4UWs5ZnUK"
+                url = "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/v${version}/${msiName}"
+              }
+            }
+          }
+          $latestJson | ConvertTo-Json -Depth 10 | Out-File -FilePath latest.json
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            src-tauri/target/release/bundle/msi/*.msi
+            latest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
