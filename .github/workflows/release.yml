@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
-      release_id: ${{ steps.create_release.outputs.id }}
+      release_id: ${{ steps.create_release.outputs.release_id }}
     steps:
       - uses: actions/checkout@v4
       
@@ -28,9 +28,12 @@ jobs:
               });
               
               const tagName = context.ref.replace('refs/tags/', '');
+              console.log('Creating release for tag:', tagName);
+              
               const existingRelease = releases.data.find(r => r.tag_name === tagName);
               
               if (existingRelease) {
+                console.log('Found existing release, deleting it first...');
                 // Delete existing release
                 await github.rest.repos.deleteRelease({
                   owner: context.repo.owner,
@@ -39,6 +42,7 @@ jobs:
                 });
               }
               
+              console.log('Creating new release...');
               // Create new release
               const release = await github.rest.repos.createRelease({
                 owner: context.repo.owner,
@@ -48,11 +52,16 @@ jobs:
                 draft: true
               });
               
+              console.log('Release created with ID:', release.data.id);
+              core.setOutput('release_id', release.data.id.toString());
+              core.setOutput('upload_url', release.data.upload_url);
+              
               return {
-                id: release.data.id.toString(),
+                release_id: release.data.id.toString(),
                 upload_url: release.data.upload_url
               };
             } catch (error) {
+              console.error('Release creation failed:', error);
               core.setFailed(`Release creation failed: ${error.message}`);
               throw error;
             }
@@ -109,10 +118,22 @@ jobs:
           release_id: ${{ needs.create-release.outputs.release_id }}
         with:
           script: |
-            await github.rest.repos.updateRelease({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              release_id: process.env.release_id,
-              draft: false,
-              prerelease: false
-            }) 
+            console.log('Publishing release with ID:', process.env.release_id);
+            if (!process.env.release_id) {
+              throw new Error('No release ID provided');
+            }
+            
+            try {
+              const result = await github.rest.repos.updateRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                release_id: parseInt(process.env.release_id, 10),
+                draft: false,
+                prerelease: false
+              });
+              console.log('Release published successfully:', result.data.html_url);
+            } catch (error) {
+              console.error('Failed to publish release:', error);
+              core.setFailed(error.message);
+              throw error;
+            } 
