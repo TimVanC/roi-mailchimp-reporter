@@ -175,17 +175,27 @@ jobs:
               }
             }
 
-      - name: Upload Release Asset
+      - name: Upload Release Asset (Windows)
+        if: matrix.platform == 'windows-latest'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ASSET_PATH: ${{ matrix.platform == 'windows-latest' && env.MSI_PATH || env.DMG_PATH }}
-          ASSET_NAME: ${{ matrix.platform == 'windows-latest' && format('ROI.Mailchimp.Reporter_{0}_x64_en-US.msi', github.ref_name) || format('ROI.Mailchimp.Reporter_{0}_x64.dmg', github.ref_name) }}
         with:
           upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ env.ASSET_PATH }}
-          asset_name: ${{ env.ASSET_NAME }}
-          asset_content_type: ${{ matrix.asset_type }}
+          asset_path: ${{ env.MSI_PATH }}
+          asset_name: ROI.Mailchimp.Reporter_${{ github.ref_name }}_x64_en-US.msi
+          asset_content_type: application/x-msi
+
+      - name: Upload Release Asset (macOS)
+        if: matrix.platform == 'macos-latest'
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: ${{ env.DMG_PATH }}
+          asset_name: ROI.Mailchimp.Reporter_${{ github.ref_name }}_x64.dmg
+          asset_content_type: application/x-apple-diskimage
 
       - name: Upload latest.json (Windows only)
         if: matrix.platform == 'windows-latest'
