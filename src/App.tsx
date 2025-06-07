@@ -9,31 +9,19 @@
  * - Date picker provider for report date selection
  */
 
+import { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import roiLogo from './assets/ROI-white-logo.png';
-import { useReportStore } from './store/reportStore';
-import { getVersion } from '@tauri-apps/api/app';
-import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
-import { useEffect, useState } from 'react';
 import { Snackbar, Alert, Button } from '@mui/material';
-
-// Import our page components that represent the main sections of the app
-import RunReport from './pages/RunReport';  // Report generation interface
-import Reports from './pages/Reports';      // Report history and management
-import Settings from './pages/Settings';    // Application configuration
-
-interface UpdateCheckResult {
-  available: boolean;
-  manifest?: {
-    version: string;
-    date: string;
-    body: string;
-  };
-}
+import { getVersion } from '@tauri-apps/api/app';
+import { invoke } from '@tauri-apps/api/core';
+import roiLogo from './assets/ROI-white-logo.png';
+import RunReport from './pages/RunReport';
+import Reports from './pages/Reports';
+import Settings from './pages/Settings';
+import { useReportStore } from './store/reportStore';
 
 /**
  * Global theme configuration using ROI's brand colors and styling preferences
@@ -121,53 +109,42 @@ const Navigation = () => {
  */
 const App = () => {
   const [version, setVersion] = useState<string>('');
-  const [updateAvailable, setUpdateAvailable] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
-  const [isInstalling, setIsInstalling] = useState(false);
+  const [showUpdateAlert, setShowUpdateAlert] = useState(false);
 
   useEffect(() => {
-    // Get current version
-    getVersion().then(setVersion);
-
-    // Listen for update events
-    const unlisten = listen('tauri://update-available', () => {
-      setUpdateAvailable(true);
-    });
-
-    // Check for updates on startup
-    checkForUpdates();
-
-    return () => {
-      unlisten.then(fn => fn());
+    const checkForUpdates = async () => {
+      try {
+        const update = await invoke<{ available: boolean }>('plugin:updater|check');
+        if (update.available) {
+          setShowUpdateAlert(true);
+        }
+      } catch (error) {
+        console.error('Failed to check for updates:', error);
+        setUpdateError(error instanceof Error ? error.message : 'Unknown error');
+      }
     };
+
+    const getAppVersion = async () => {
+      try {
+        const ver = await getVersion();
+        setVersion(ver);
+      } catch (error) {
+        console.error('Failed to get version:', error);
+      }
+    };
+
+    getAppVersion();
+    checkForUpdates();
   }, []);
 
-  const checkForUpdates = async () => {
+  const handleUpdate = async () => {
     try {
-      // Invoke the check-update command
-      const { available } = await invoke<UpdateCheckResult>('plugin:updater|check');
-      
-      if (available) {
-        console.log('Update available');
-        setUpdateAvailable(true);
-      }
-    } catch (error) {
-      console.error('Error checking for updates:', error);
-      setUpdateError('Failed to check for updates');
-    }
-  };
-
-  const handleInstallUpdate = async () => {
-    try {
-      setIsInstalling(true);
-      // Install the update
       await invoke('plugin:updater|install');
-      // Restart the app
-      await invoke('plugin:process|restart');
+      setShowUpdateAlert(false);
     } catch (error) {
-      console.error('Error installing update:', error);
-      setUpdateError('Failed to install update');
-      setIsInstalling(false);
+      console.error('Failed to install update:', error);
+      setUpdateError(error instanceof Error ? error.message : 'Unknown error');
     }
   };
 
@@ -207,7 +184,7 @@ const App = () => {
 
             {/* Update notification */}
             <Snackbar 
-              open={updateAvailable} 
+              open={showUpdateAlert} 
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             >
               <Alert 
@@ -216,14 +193,13 @@ const App = () => {
                   <Button 
                     color="inherit" 
                     size="small" 
-                    onClick={handleInstallUpdate}
-                    disabled={isInstalling}
+                    onClick={handleUpdate}
                   >
-                    {isInstalling ? 'Installing...' : 'Install Update'}
+                    Install Update
                   </Button>
                 }
               >
-                A new version is available!
+                A new version is available
               </Alert>
             </Snackbar>
 
@@ -234,7 +210,7 @@ const App = () => {
               onClose={() => setUpdateError(null)}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             >
-              <Alert severity="error" onClose={() => setUpdateError(null)}>
+              <Alert severity="error">
                 {updateError}
               </Alert>
             </Snackbar>

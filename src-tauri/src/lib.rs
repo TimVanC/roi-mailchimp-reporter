@@ -1149,18 +1149,17 @@ fn emit_event(app: tauri::AppHandle, event: String, payload: Option<serde_json::
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             greet,
             load_settings,
             save_settings,
-            generate_report,
             load_reports,
             save_report,
+            generate_report,
             open_report_in_excel,
-            write_report_file,
             delete_report,
             opener_open,
             download_report,

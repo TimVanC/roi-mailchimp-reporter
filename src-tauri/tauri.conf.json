@@ -17,6 +17,7 @@
         "scope": ["**"]
       }
     },
+    "withGlobalTauri": true,
     "windows": [
       {
         "fullscreen": false,
@@ -28,8 +29,7 @@
         "center": true,
         "minWidth": 800,
         "minHeight": 600,
-        "visible": true,
-        "devTools": true
+        "visible": true
       }
     ]
   },
@@ -61,16 +61,16 @@
     }
   },
   "plugins": {
-    "dialog": null,
+    "dialog": {},
     "shell": {
-      "open": true
+      "scope": {
+        "open": true
+      }
     },
     "updater": {
-      "active": true,
       "endpoints": [
-        "https://github.com/TimVanC/roi-mailchimp-reporter/releases/latest/download/latest.json"
+        "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/v{{current_version}}/latest.json"
       ],
-      "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhFOUVGMTUyRjg4RTRDREQKUldUZFRJNzRVdkdlanNCZTUrT1ZyTWk3YXViQUNzWGVTRXhmWDRYdWx2MUMyTmF1Skp4UWs5ZnUK"
     }
   }
