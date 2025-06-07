@@ -175,38 +175,58 @@ jobs:
               }
             }
 
-      - name: Upload Release Asset (Windows)
-        if: matrix.platform == 'windows-latest'
-        uses: actions/upload-release-asset@v1
+      - name: Upload Assets
+        uses: actions/github-script@v6
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MSI_PATH: ${{ env.MSI_PATH }}
+          DMG_PATH: ${{ env.DMG_PATH }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ env.MSI_PATH }}
-          asset_name: ROI.Mailchimp.Reporter_${{ github.ref_name }}_x64_en-US.msi
-          asset_content_type: application/x-msi
-
-      - name: Upload Release Asset (macOS)
-        if: matrix.platform == 'macos-latest'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: ${{ env.DMG_PATH }}
-          asset_name: ROI.Mailchimp.Reporter_${{ github.ref_name }}_x64.dmg
-          asset_content_type: application/x-apple-diskimage
-
-      - name: Upload latest.json (Windows only)
-        if: matrix.platform == 'windows-latest'
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: latest.json
-          asset_name: latest.json
-          asset_content_type: application/json
+          script: |
+            const fs = require('fs');
+            const { basename } = require('path');
+            
+            async function uploadAsset(releaseId, assetPath, contentType) {
+              if (!assetPath) return;
+              
+              try {
+                const data = await fs.promises.readFile(assetPath);
+                const name = basename(assetPath);
+                
+                await github.rest.repos.uploadReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: releaseId,
+                  name: name,
+                  data: data,
+                  headers: {
+                    'content-type': contentType,
+                    'content-length': data.length
+                  }
+                });
+                console.log(`Successfully uploaded ${name}`);
+              } catch (error) {
+                console.error(`Failed to upload ${assetPath}: ${error}`);
+                throw error;
+              }
+            }
+            
+            const platform = '${{ matrix.platform }}';
+            const releaseId = '${{ needs.create-release.outputs.release_id }}';
+            
+            if (platform === 'windows-latest') {
+              // Upload MSI
+              const msiName = `ROI.Mailchimp.Reporter_${context.ref.replace('refs/tags/', '')}_x64_en-US.msi`;
+              await uploadAsset(releaseId, process.env.MSI_PATH, 'application/x-msi');
+              
+              // Upload latest.json
+              if (fs.existsSync('latest.json')) {
+                await uploadAsset(releaseId, 'latest.json', 'application/json');
+              }
+            } else if (platform === 'macos-latest') {
+              // Upload DMG
+              const dmgName = `ROI.Mailchimp.Reporter_${context.ref.replace('refs/tags/', '')}_x64.dmg`;
+              await uploadAsset(releaseId, process.env.DMG_PATH, 'application/x-apple-diskimage');
+            }
 
   publish-release:
     needs: [create-release, build-and-upload]
