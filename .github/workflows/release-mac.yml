@@ -3,6 +3,8 @@ on:
   push:
     tags:
       - 'v*'
+    paths-ignore:
+      - '.github/workflows/release-win.yml'
 
 jobs:
   create-macos-release:
@@ -29,6 +31,7 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: src-tauri/target/release/bundle/dmg/*.dmg
         env:
