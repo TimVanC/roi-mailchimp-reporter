@@ -391,21 +391,28 @@ const Settings = () => {
   const handleCheckUpdate = async () => {
     try {
       setIsCheckingUpdate(true);
-      setUpdateError(null); // Clear any previous errors
-      console.log('Starting update check...');
+      setUpdateError(null);
       
-      const result = await invoke<UpdateCheckResult>('plugin:updater|check');
-      console.log('Update check result:', result);
+      // Log current version
+      const currentVersion = import.meta.env.VITE_APP_VERSION || '1.0.62';
+      console.log('Current version:', currentVersion);
       
-      if (result.available && result.manifest) {
-        console.log('Update available:', result.manifest);
+      // Log the update check attempt
+      console.log('Checking for updates...');
+      
+      const checkResult = await invoke<UpdateCheckResult>('plugin:updater|check');
+      console.log('Update check result:', JSON.stringify(checkResult, null, 2));
+      
+      if (checkResult.available && checkResult.manifest) {
+        console.log('Update available:', checkResult.manifest);
         setUpdateAvailable(true);
         setSnackbar({
           open: true,
-          message: `Update ${result.manifest.version} is available! Click Install to update.`,
+          message: `Update ${checkResult.manifest.version} is available! Click Install to update.`,
           severity: 'info',
         });
       } else {
+        console.log('No update available');
         setSnackbar({
           open: true,
           message: 'You are on the latest version!',
@@ -414,11 +421,20 @@ const Settings = () => {
       }
     } catch (error) {
       console.error('Error checking for updates:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      setUpdateError(`Failed to check for updates: ${errorMessage}`);
+      
+      // Enhanced error message
+      let errorMessage = 'Failed to check for updates';
+      if (error instanceof Error) {
+        errorMessage += `: ${error.message}`;
+        console.error('Error stack:', error.stack);
+      } else {
+        errorMessage += `: ${String(error)}`;
+      }
+      
+      setUpdateError(errorMessage);
       setSnackbar({
         open: true,
-        message: `Update check failed: ${errorMessage}`,
+        message: errorMessage,
         severity: 'error',
       });
     } finally {
@@ -429,21 +445,40 @@ const Settings = () => {
   const handleInstallUpdate = async () => {
     try {
       setIsInstalling(true);
-      setUpdateError(null); // Clear any previous errors
+      setUpdateError(null);
+      
       console.log('Starting update installation...');
-      
       await invoke('plugin:updater|install');
-      console.log('Update installed, restarting...');
+      console.log('Update installed successfully');
       
+      setSnackbar({
+        open: true,
+        message: 'Update installed! Restarting application...',
+        severity: 'success',
+      });
+      
+      // Add a small delay before restart
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      console.log('Restarting application...');
       await invoke('plugin:process|restart');
     } catch (error) {
       console.error('Error installing update:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      setUpdateError(`Failed to install update: ${errorMessage}`);
+      
+      // Enhanced error message
+      let errorMessage = 'Failed to install update';
+      if (error instanceof Error) {
+        errorMessage += `: ${error.message}`;
+        console.error('Error stack:', error.stack);
+      } else {
+        errorMessage += `: ${String(error)}`;
+      }
+      
+      setUpdateError(errorMessage);
       setIsInstalling(false);
       setSnackbar({
         open: true,
-        message: `Update installation failed: ${errorMessage}`,
+        message: errorMessage,
         severity: 'error',
       });
     }
