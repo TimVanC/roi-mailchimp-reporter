@@ -128,6 +128,7 @@ const Settings = () => {
    */
   useEffect(() => {
     loadSettings();
+    handleCheckUpdate();
   }, []);
 
   /**
@@ -393,9 +394,11 @@ const Settings = () => {
       setIsCheckingUpdate(true);
       setUpdateError(null);
       
-      // Log current version
-      const currentVersion = import.meta.env.VITE_APP_VERSION || '1.0.62';
+      // Log current version and endpoint
+      const currentVersion = import.meta.env.VITE_APP_VERSION || '1.0.64';
+      const endpoint = `https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/v${currentVersion}/latest.json`;
       console.log('Current version:', currentVersion);
+      console.log('Update endpoint:', endpoint);
       
       // Log the update check attempt
       console.log('Checking for updates...');
@@ -731,37 +734,47 @@ const Settings = () => {
 
       <div className="border-t pt-6">
         <h2 className="text-xl font-semibold mb-4">Updates</h2>
-        <div className="flex items-center space-x-4">
-          <div className="text-gray-600 mr-4">
-            Current Version: <span className="font-mono">{import.meta.env.VITE_APP_VERSION || '1.0.61'}</span>
+        <div className="space-y-4">
+          <div className="text-gray-600">
+            Current Version: <span className="font-mono">{import.meta.env.VITE_APP_VERSION || '1.0.64'}</span>
           </div>
-          <Button
-            variant="contained"
-            onClick={handleCheckUpdate}
-            disabled={isCheckingUpdate}
-            startIcon={isCheckingUpdate ? <CircularProgress size={20} /> : null}
-          >
-            {isCheckingUpdate ? 'Checking...' : 'Check for Updates'}
-          </Button>
           
-          {updateAvailable && (
+          {updateError && (
+            <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+              <div className="text-red-700 font-medium">Error Details:</div>
+              <div className="text-red-600 mt-1 font-mono text-sm whitespace-pre-wrap">{updateError}</div>
+            </div>
+          )}
+
+          <div className="flex items-center space-x-4">
             <Button
               variant="contained"
-              color="primary"
-              onClick={handleInstallUpdate}
-              disabled={isInstalling}
-              startIcon={isInstalling ? <CircularProgress size={20} /> : null}
+              onClick={handleCheckUpdate}
+              disabled={isCheckingUpdate}
+              startIcon={isCheckingUpdate ? <CircularProgress size={20} /> : null}
             >
-              {isInstalling ? 'Installing...' : 'Install Update'}
+              {isCheckingUpdate ? 'Checking...' : 'Check for Updates'}
             </Button>
-          )}
+            
+            {updateAvailable && (
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleInstallUpdate}
+                disabled={isInstalling}
+                startIcon={isInstalling ? <CircularProgress size={20} /> : null}
+              >
+                {isInstalling ? 'Installing...' : 'Install Update'}
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
       {/* Error notification */}
       <Snackbar 
         open={!!updateError} 
-        autoHideDuration={6000} 
+        autoHideDuration={null}  // Don't auto-hide error messages
         onClose={() => setUpdateError(null)}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
