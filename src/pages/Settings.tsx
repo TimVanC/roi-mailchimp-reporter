@@ -6,13 +6,14 @@
  * - Advertiser management (add/remove/search)
  * - Download directory selection
  * - Settings persistence
+ * - Automatic update system with manual check option
  * 
- * Features:
- * - Real-time settings validation
- * - Searchable advertiser list with pagination
- * - Secure credential storage
- * - User-friendly file system integration
- * - Error handling and user feedback
+ * Update System Features:
+ * - Automatic update checks on app start
+ * - Manual update checking via UI
+ * - Progress indicators for checking and installation
+ * - Detailed error handling and user feedback
+ * - Version display and update status
  */
 
 import React, { useState, useEffect } from 'react';
