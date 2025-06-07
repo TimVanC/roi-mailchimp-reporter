@@ -16,12 +16,24 @@ import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import roiLogo from './assets/ROI-white-logo.png';
 import { useReportStore } from './store/reportStore';
 import { getVersion } from '@tauri-apps/api/app';
+import { listen } from '@tauri-apps/api/event';
+import { invoke } from '@tauri-apps/api/core';
 import { useEffect, useState } from 'react';
+import { Snackbar, Alert, Button } from '@mui/material';
 
 // Import our page components that represent the main sections of the app
 import RunReport from './pages/RunReport';  // Report generation interface
 import Reports from './pages/Reports';      // Report history and management
 import Settings from './pages/Settings';    // Application configuration
+
+interface UpdateCheckResult {
+  available: boolean;
+  manifest?: {
+    version: string;
+    date: string;
+    body: string;
+  };
+}
 
 /**
  * Global theme configuration using ROI's brand colors and styling preferences
@@ -109,10 +121,55 @@ const Navigation = () => {
  */
 const App = () => {
   const [version, setVersion] = useState<string>('');
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [isInstalling, setIsInstalling] = useState(false);
 
   useEffect(() => {
+    // Get current version
     getVersion().then(setVersion);
+
+    // Listen for update events
+    const unlisten = listen('tauri://update-available', () => {
+      setUpdateAvailable(true);
+    });
+
+    // Check for updates on startup
+    checkForUpdates();
+
+    return () => {
+      unlisten.then(fn => fn());
+    };
   }, []);
+
+  const checkForUpdates = async () => {
+    try {
+      // Invoke the check-update command
+      const { available } = await invoke<UpdateCheckResult>('plugin:updater|check');
+      
+      if (available) {
+        console.log('Update available');
+        setUpdateAvailable(true);
+      }
+    } catch (error) {
+      console.error('Error checking for updates:', error);
+      setUpdateError('Failed to check for updates');
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    try {
+      setIsInstalling(true);
+      // Install the update
+      await invoke('plugin:updater|install');
+      // Restart the app
+      await invoke('plugin:process|restart');
+    } catch (error) {
+      console.error('Error installing update:', error);
+      setUpdateError('Failed to install update');
+      setIsInstalling(false);
+    }
+  };
 
   return (
     <ThemeProvider theme={theme}>
@@ -147,6 +204,40 @@ const App = () => {
                 </Routes>
               </div>
             </main>
+
+            {/* Update notification */}
+            <Snackbar 
+              open={updateAvailable} 
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+              <Alert 
+                severity="info"
+                action={
+                  <Button 
+                    color="inherit" 
+                    size="small" 
+                    onClick={handleInstallUpdate}
+                    disabled={isInstalling}
+                  >
+                    {isInstalling ? 'Installing...' : 'Install Update'}
+                  </Button>
+                }
+              >
+                A new version is available!
+              </Alert>
+            </Snackbar>
+
+            {/* Error notification */}
+            <Snackbar 
+              open={!!updateError} 
+              autoHideDuration={6000} 
+              onClose={() => setUpdateError(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            >
+              <Alert severity="error" onClose={() => setUpdateError(null)}>
+                {updateError}
+              </Alert>
+            </Snackbar>
           </div>
         </Router>
       </LocalizationProvider>
