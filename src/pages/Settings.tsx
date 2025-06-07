@@ -390,11 +390,20 @@ const Settings = () => {
   const handleCheckUpdate = async () => {
     try {
       setIsCheckingUpdate(true);
-      const { available, manifest } = await invoke<UpdateCheckResult>('plugin:updater|check');
+      setUpdateError(null); // Clear any previous errors
+      console.log('Starting update check...');
       
-      if (available && manifest) {
-        console.log('Update available:', manifest);
+      const result = await invoke<UpdateCheckResult>('plugin:updater|check');
+      console.log('Update check result:', result);
+      
+      if (result.available && result.manifest) {
+        console.log('Update available:', result.manifest);
         setUpdateAvailable(true);
+        setSnackbar({
+          open: true,
+          message: `Update ${result.manifest.version} is available! Click Install to update.`,
+          severity: 'info',
+        });
       } else {
         setSnackbar({
           open: true,
@@ -404,7 +413,13 @@ const Settings = () => {
       }
     } catch (error) {
       console.error('Error checking for updates:', error);
-      setUpdateError('Failed to check for updates');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setUpdateError(`Failed to check for updates: ${errorMessage}`);
+      setSnackbar({
+        open: true,
+        message: `Update check failed: ${errorMessage}`,
+        severity: 'error',
+      });
     } finally {
       setIsCheckingUpdate(false);
     }
@@ -413,12 +428,23 @@ const Settings = () => {
   const handleInstallUpdate = async () => {
     try {
       setIsInstalling(true);
+      setUpdateError(null); // Clear any previous errors
+      console.log('Starting update installation...');
+      
       await invoke('plugin:updater|install');
+      console.log('Update installed, restarting...');
+      
       await invoke('plugin:process|restart');
     } catch (error) {
       console.error('Error installing update:', error);
-      setUpdateError('Failed to install update');
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setUpdateError(`Failed to install update: ${errorMessage}`);
       setIsInstalling(false);
+      setSnackbar({
+        open: true,
+        message: `Update installation failed: ${errorMessage}`,
+        severity: 'error',
+      });
     }
   };
 
@@ -670,6 +696,9 @@ const Settings = () => {
       <div className="border-t pt-6">
         <h2 className="text-xl font-semibold mb-4">Updates</h2>
         <div className="flex items-center space-x-4">
+          <div className="text-gray-600 mr-4">
+            Current Version: <span className="font-mono">{import.meta.env.VITE_APP_VERSION || '1.0.61'}</span>
+          </div>
           <Button
             variant="contained"
             onClick={handleCheckUpdate}
