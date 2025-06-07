@@ -10,21 +10,52 @@ jobs:
       contents: write
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
-      release_id: ${{ steps.create_release.outputs.id }}
+      upload_url: ${{ steps.get_release.outputs.upload_url }}
+      release_id: ${{ steps.get_release.outputs.id }}
     steps:
       - uses: actions/checkout@v4
       
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Get or create release
+        id: get_release
+        uses: actions/github-script@v6
         with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: true
-          prerelease: false
+          script: |
+            try {
+              // Try to get existing release
+              const releases = await github.rest.repos.listReleases({
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              });
+              
+              const tagName = context.ref.replace('refs/tags/', '');
+              const existingRelease = releases.data.find(r => r.tag_name === tagName);
+              
+              if (existingRelease) {
+                // Delete existing release
+                await github.rest.repos.deleteRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: existingRelease.id
+                });
+              }
+              
+              // Create new release
+              const { data: newRelease } = await github.rest.repos.createRelease({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag_name: tagName,
+                name: `Release ${tagName}`,
+                draft: true
+              });
+              
+              return {
+                id: newRelease.id.toString(),
+                upload_url: newRelease.upload_url
+              };
+            } catch (error) {
+              core.setFailed(`Release creation failed: ${error.message}`);
+              throw error;
+            }
 
   build-and-upload:
     needs: create-release
@@ -91,6 +122,48 @@ jobs:
         run: |
           DMG_FILE=$(ls src-tauri/target/release/bundle/dmg/*.dmg | head -n 1)
           echo "DMG_PATH=$DMG_FILE" >> $GITHUB_ENV
+
+      - name: Delete existing assets
+        if: matrix.platform == 'windows-latest'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const release = await github.rest.repos.getRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }}
+            });
+            
+            for (const asset of release.data.assets) {
+              if (asset.name === 'latest.json' || asset.name.endsWith('.msi')) {
+                await github.rest.repos.deleteReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  asset_id: asset.id
+                });
+              }
+            }
+
+      - name: Delete existing DMG assets
+        if: matrix.platform == 'macos-latest'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const release = await github.rest.repos.getRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: ${{ needs.create-release.outputs.release_id }}
+            });
+            
+            for (const asset of release.data.assets) {
+              if (asset.name.endsWith('.dmg')) {
+                await github.rest.repos.deleteReleaseAsset({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  asset_id: asset.id
+                });
+              }
+            }
 
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
