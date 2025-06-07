@@ -35,6 +35,7 @@ import {
   Pagination,
   Divider,
   Chip,
+  CircularProgress,
 } from '@mui/material';
 import {
   Delete as DeleteIcon,
@@ -56,6 +57,15 @@ interface Settings {
   mailchimp_audience_id: string;   // Target Mailchimp audience/list ID
   advertisers: string[];          // List of configured advertisers
   download_directory: string;     // Where generated reports will be saved
+}
+
+interface UpdateCheckResult {
+  available: boolean;
+  manifest?: {
+    version: string;
+    date: string;
+    body: string;
+  };
 }
 
 /**
@@ -105,6 +115,11 @@ const Settings = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   const itemsPerPage = 10; // Number of advertisers shown per page
+
+  const [isCheckingUpdate, setIsCheckingUpdate] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  const [isInstalling, setIsInstalling] = useState(false);
 
   /**
    * Initialize component by loading settings
@@ -372,6 +387,41 @@ const Settings = () => {
     }
   };
 
+  const handleCheckUpdate = async () => {
+    try {
+      setIsCheckingUpdate(true);
+      const { available, manifest } = await invoke<UpdateCheckResult>('plugin:updater|check');
+      
+      if (available && manifest) {
+        console.log('Update available:', manifest);
+        setUpdateAvailable(true);
+      } else {
+        setSnackbar({
+          open: true,
+          message: 'You are on the latest version!',
+          severity: 'success',
+        });
+      }
+    } catch (error) {
+      console.error('Error checking for updates:', error);
+      setUpdateError('Failed to check for updates');
+    } finally {
+      setIsCheckingUpdate(false);
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    try {
+      setIsInstalling(true);
+      await invoke('plugin:updater|install');
+      await invoke('plugin:process|restart');
+    } catch (error) {
+      console.error('Error installing update:', error);
+      setUpdateError('Failed to install update');
+      setIsInstalling(false);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto pt-1">
       {/* Mailchimp API Settings */}
@@ -614,6 +664,44 @@ const Settings = () => {
           sx={{ width: '100%' }}
         >
           {snackbar.message}
+        </Alert>
+      </Snackbar>
+
+      <div className="border-t pt-6">
+        <h2 className="text-xl font-semibold mb-4">Updates</h2>
+        <div className="flex items-center space-x-4">
+          <Button
+            variant="contained"
+            onClick={handleCheckUpdate}
+            disabled={isCheckingUpdate}
+            startIcon={isCheckingUpdate ? <CircularProgress size={20} /> : null}
+          >
+            {isCheckingUpdate ? 'Checking...' : 'Check for Updates'}
+          </Button>
+          
+          {updateAvailable && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleInstallUpdate}
+              disabled={isInstalling}
+              startIcon={isInstalling ? <CircularProgress size={20} /> : null}
+            >
+              {isInstalling ? 'Installing...' : 'Install Update'}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Error notification */}
+      <Snackbar 
+        open={!!updateError} 
+        autoHideDuration={6000} 
+        onClose={() => setUpdateError(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert severity="error" onClose={() => setUpdateError(null)}>
+          {updateError}
         </Alert>
       </Snackbar>
     </div>
