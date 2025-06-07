@@ -182,15 +182,18 @@ jobs:
           DMG_PATH: ${{ env.DMG_PATH }}
         with:
           script: |
-            const fs = require('fs');
-            const { basename } = require('path');
+            const fs = require('fs').promises;
+            const path = require('path');
             
             async function uploadAsset(releaseId, assetPath, contentType) {
-              if (!assetPath) return;
+              if (!assetPath) {
+                console.log(`No asset path provided for ${contentType}`);
+                return;
+              }
               
               try {
-                const data = await fs.promises.readFile(assetPath);
-                const name = basename(assetPath);
+                const data = await fs.readFile(assetPath);
+                const name = path.basename(assetPath);
                 
                 await github.rest.repos.uploadReleaseAsset({
                   owner: context.repo.owner,
@@ -210,22 +213,32 @@ jobs:
               }
             }
             
-            const platform = '${{ matrix.platform }}';
-            const releaseId = '${{ needs.create-release.outputs.release_id }}';
-            
-            if (platform === 'windows-latest') {
-              // Upload MSI
-              const msiName = `ROI.Mailchimp.Reporter_${context.ref.replace('refs/tags/', '')}_x64_en-US.msi`;
-              await uploadAsset(releaseId, process.env.MSI_PATH, 'application/x-msi');
+            try {
+              const platform = '${{ matrix.platform }}';
+              const releaseId = '${{ needs.create-release.outputs.release_id }}';
+              const tagName = context.ref.replace('refs/tags/', '');
               
-              // Upload latest.json
-              if (fs.existsSync('latest.json')) {
-                await uploadAsset(releaseId, 'latest.json', 'application/json');
+              if (platform === 'windows-latest') {
+                // Upload MSI
+                const msiPath = process.env.MSI_PATH;
+                console.log(`Attempting to upload MSI from: ${msiPath}`);
+                await uploadAsset(releaseId, msiPath, 'application/x-msi');
+                
+                // Upload latest.json
+                const latestJsonPath = 'latest.json';
+                if (await fs.access(latestJsonPath).then(() => true).catch(() => false)) {
+                  console.log('Found latest.json, uploading...');
+                  await uploadAsset(releaseId, latestJsonPath, 'application/json');
+                }
+              } else if (platform === 'macos-latest') {
+                // Upload DMG
+                const dmgPath = process.env.DMG_PATH;
+                console.log(`Attempting to upload DMG from: ${dmgPath}`);
+                await uploadAsset(releaseId, dmgPath, 'application/x-apple-diskimage');
               }
-            } else if (platform === 'macos-latest') {
-              // Upload DMG
-              const dmgName = `ROI.Mailchimp.Reporter_${context.ref.replace('refs/tags/', '')}_x64.dmg`;
-              await uploadAsset(releaseId, process.env.DMG_PATH, 'application/x-apple-diskimage');
+            } catch (error) {
+              console.error('Failed to upload assets:', error);
+              core.setFailed(error.message);
             }
 
   publish-release:
