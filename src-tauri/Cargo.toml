@@ -1,6 +1,6 @@
 [package]
 name = "roi-mailchimp-reporter"
-version = "1.0.77"
+version = "1.0.82"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -8,8 +8,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = ["protocol-asset"]
-protocol-asset = []
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
 
 [lib]
 # The `_lib` suffix may seem redundant but it is necessary
@@ -19,16 +19,15 @@ name = "roi_mailchimp_reporter_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2", features = [] }
+tauri-build = { version = "1.5.4", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = [
-    "protocol-asset"
+tauri = { version = "1.5.4", features = [
+    "custom-protocol",
+    "updater",
+    "dialog-all",
+    "shell-open"
 ] }
-tauri-plugin-updater = "2"
-tauri-plugin-opener = "2"
-tauri-plugin-dialog = "2"
-tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.11", features = ["json"] }

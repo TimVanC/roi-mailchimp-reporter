@@ -1,10 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
-use tauri::Manager;
+use tauri::{Manager, Builder};
 use reqwest;
 use std::io::Write;
 use std::fs::File;
-use tauri::Emitter;
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use url::Url;
 
@@ -68,6 +67,27 @@ struct SavedReport {
     metrics: Metrics,
 }
 
+// Create a custom error type to handle Tauri errors
+#[derive(Debug)]
+struct AppError(String);
+
+impl From<tauri::Error> for AppError {
+    fn from(error: tauri::Error) -> Self {
+        AppError(error.to_string())
+    }
+}
+
+impl From<AppError> for String {
+    fn from(error: AppError) -> String {
+        error.0
+    }
+}
+
+// Helper function to convert AppError to String
+fn convert_error(result: Result<(), AppError>) -> Result<(), String> {
+    result.map_err(|e| e.0)
+}
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -76,8 +96,9 @@ fn greet(name: &str) -> String {
 
 #[tauri::command]
 fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
-    let app_dir = app.path().app_config_dir()
-        .map_err(|e| format!("Could not get app directory: {}", e))?;
+    let app_dir = app.path_resolver()
+        .app_config_dir()
+        .ok_or_else(|| "Could not get app directory".to_string())?;
     let settings_path = app_dir.join("settings.json");
     
     println!("Loading settings from: {:?}", settings_path);
@@ -192,8 +213,9 @@ fn load_settings(app: tauri::AppHandle) -> Result<Settings, String> {
 #[tauri::command]
 fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String> {
     // Get the app config directory
-    let app_dir = app.path().app_config_dir()
-        .map_err(|e| format!("Could not get app directory: {}", e))?;
+    let app_dir = app.path_resolver()
+        .app_config_dir()
+        .ok_or_else(|| "Could not get app directory".to_string())?;
     
     println!("Saving settings to directory: {:?}", app_dir);
     
@@ -244,8 +266,9 @@ fn save_settings(app: tauri::AppHandle, settings: Settings) -> Result<(), String
 
 #[tauri::command]
 fn load_reports(app: tauri::AppHandle) -> Result<Vec<SavedReport>, String> {
-    let app_dir = app.path().app_config_dir()
-        .map_err(|e| format!("Could not get app directory: {}", e))?;
+    let app_dir = app.path_resolver()
+        .app_config_dir()
+        .ok_or_else(|| "Could not get app directory".to_string())?;
     let reports_path = app_dir.join("reports.json");
 
     if !reports_path.exists() {
@@ -304,8 +327,9 @@ fn load_reports(app: tauri::AppHandle) -> Result<Vec<SavedReport>, String> {
 
 #[tauri::command]
 fn save_report(app: tauri::AppHandle, report: SavedReport) -> Result<(), String> {
-    let app_dir = app.path().app_config_dir()
-        .map_err(|e| format!("Could not get app directory: {}", e))?;
+    let app_dir = app.path_resolver()
+        .app_config_dir()
+        .ok_or_else(|| "Could not get app directory".to_string())?;
     
     // Create the config directory if it doesn't exist
     fs::create_dir_all(&app_dir)
@@ -324,8 +348,9 @@ fn save_report(app: tauri::AppHandle, report: SavedReport) -> Result<(), String>
         .map_err(|e| format!("Failed to write reports: {}", e))
 }
 
-// Add these validation functions before the generate_report function
-fn validate_tracking_urls(urls: &[String]) -> Result<(), String> {
+// Fix the command macros by using owned types and proper error handling
+#[tauri::command]
+async fn validate_tracking_urls(urls: Vec<String>) -> Result<(), String> {
     if urls.is_empty() {
         return Err("No tracking URLs provided".to_string());
     }
@@ -343,7 +368,7 @@ fn validate_tracking_urls(urls: &[String]) -> Result<(), String> {
             }
         } else {
             // If it's meant to be a full URL, validate it properly
-            if let Err(_) = Url::parse(url) {
+            if let Err(_) = Url::parse(&url) {
                 return Err(format!("Invalid tracking URL format: {}", url));
             }
         }
@@ -351,7 +376,8 @@ fn validate_tracking_urls(urls: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-fn validate_campaign_data(campaigns: &[serde_json::Value], newsletter_type: &str) -> Result<(), String> {
+#[tauri::command]
+async fn validate_campaign_data(campaigns: Vec<serde_json::Value>, newsletter_type: String) -> Result<(), String> {
     if campaigns.is_empty() {
         return Err("No campaigns found for the specified date range".to_string());
     }
@@ -387,10 +413,19 @@ fn validate_campaign_data(campaigns: &[serde_json::Value], newsletter_type: &str
     Ok(())
 }
 
+// Fix the generate_report function to use the new error type and handle async properly
 #[tauri::command]
 async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Result<ReportResponse, String> {
     // Validate tracking URLs first
-    validate_tracking_urls(&request.tracking_urls)?;
+    let tracking_urls_result = validate_tracking_urls(request.tracking_urls.clone()).await;
+    if let Err(e) = tracking_urls_result {
+        return Ok(ReportResponse {
+            success: false,
+            message: e,
+            data: None,
+            progress_updates: Vec::new(),
+        });
+    }
 
     // Init progress tracking with start time
     let start_time = std::time::Instant::now();
@@ -408,9 +443,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     progress_updates.push(initial_update.clone());
     
     // Emit the progress update to the frontend
-    if let Err(e) = app.emit("report-progress", initial_update) {
-        println!("Failed to emit progress update: {}", e);
-    }
+    convert_error(app.emit_all("progress", initial_update).map_err(AppError::from))?;
 
     // Load settings
     let settings = load_settings(app.clone())?;
@@ -434,9 +467,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(connecting_update.clone());
-    if let Err(e) = app.emit("report-progress", connecting_update) {
-        println!("Failed to emit progress update: {}", e);
-    }
+    convert_error(app.emit_all("progress", connecting_update).map_err(AppError::from))?;
 
     // Create Mailchimp API client
     let client = reqwest::Client::new();
@@ -466,9 +497,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(fetching_update.clone());
-    if let Err(e) = app.emit("report-progress", fetching_update) {
-        println!("Failed to emit progress update: {}", e);
-    }
+    convert_error(app.emit_all("progress", fetching_update).map_err(AppError::from))?;
     
     let campaigns_response = client
         .get(&campaigns_url)
@@ -505,7 +534,15 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     };
     
     // After fetching campaigns, validate the campaign data
-    validate_campaign_data(campaigns, &request.newsletter_type)?;
+    let campaign_validation_result = validate_campaign_data(campaigns.to_vec(), request.newsletter_type.clone()).await;
+    if let Err(e) = campaign_validation_result {
+        return Ok(ReportResponse {
+            success: false,
+            message: e,
+            data: None,
+            progress_updates,
+        });
+    }
 
     // 30% progress
     let filtering_update = ProgressUpdate {
@@ -517,9 +554,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(filtering_update.clone());
-    if let Err(e) = app.emit("report-progress", filtering_update) {
-        println!("Failed to emit progress update: {}", e);
-    }
+    convert_error(app.emit_all("progress", filtering_update).map_err(AppError::from))?;
     
     // Filter campaigns by newsletter type
     let mut filtered_campaigns = Vec::new();
@@ -553,9 +588,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     };
     
     progress_updates.push(initial_processing_update.clone());
-    if let Err(e) = app.emit("report-progress", initial_processing_update) {
-        println!("Failed to emit progress update: {}", e);
-    }
+    convert_error(app.emit_all("progress", initial_processing_update).map_err(AppError::from))?;
     
     // Process each filtered campaign to analyze clicks for the specific ad URLs
     let mut report_data = Vec::new();
@@ -603,9 +636,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
         
         // Store and emit update
         progress_updates.push(campaign_update.clone());
-        if let Err(e) = app.emit("report-progress", campaign_update) {
-            println!("Failed to emit progress update: {}", e);
-        }
+        convert_error(app.emit_all("progress", campaign_update).map_err(AppError::from))?;
         
         // Extract campaign ID and metrics
         let campaign_id = match campaign.get("id").and_then(|id| id.as_str()) {
@@ -708,9 +739,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(finalizing_update.clone());
-    if let Err(e) = app.emit("report-progress", finalizing_update) {
-        println!("Failed to emit progress update: {}", e);
-    }
+    convert_error(app.emit_all("progress", finalizing_update).map_err(AppError::from))?;
     
     // Sort report data by date
     report_data.sort_by(|a, b| {
@@ -739,9 +768,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(saving_update.clone());
-    if let Err(e) = app.emit("report-progress", saving_update) {
-        println!("Failed to emit progress update: {}", e);
-    }
+    convert_error(app.emit_all("progress", saving_update).map_err(AppError::from))?;
 
     // Save the report with metrics
     let report = SavedReport {
@@ -759,11 +786,9 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     save_report(app.clone(), report.clone())?;
 
     // Emit report-generated event with the complete report data
-    if let Err(e) = app.emit("report-generated", serde_json::json!({
+    convert_error(app.emit_all("report-generated", serde_json::json!({
         "report": report
-    })) {
-        println!("Failed to emit report-generated event: {}", e);
-    }
+    })).map_err(AppError::from))?;
 
     // 100% progress
     let complete_update = ProgressUpdate {
@@ -775,9 +800,7 @@ async fn generate_report(app: tauri::AppHandle, request: ReportRequest) -> Resul
     
     // Store and emit update
     progress_updates.push(complete_update.clone());
-    if let Err(e) = app.emit("report-progress", complete_update) {
-        println!("Failed to emit progress update: {}", e);
-    }
+    convert_error(app.emit_all("progress", complete_update).map_err(AppError::from))?;
 
     Ok(ReportResponse {
         success: true,
@@ -920,8 +943,9 @@ fn write_report_file(path: String, report: serde_json::Value) -> Result<(), Stri
 
 #[tauri::command]
 fn delete_report(app: tauri::AppHandle, report_id: String) -> Result<(), String> {
-    let app_dir = app.path().app_config_dir()
-        .map_err(|e| format!("Could not get app directory: {}", e))?;
+    let app_dir = app.path_resolver()
+        .app_config_dir()
+        .ok_or_else(|| "Could not get app directory".to_string())?;
     let reports_path = app_dir.join("reports.json");
 
     if !reports_path.exists() {
@@ -1133,8 +1157,9 @@ fn download_csv(app: tauri::AppHandle, reportData: serde_json::Value) -> Result<
 
 #[tauri::command]
 fn get_settings_path(app: tauri::AppHandle) -> Result<String, String> {
-    let app_dir = app.path().app_config_dir()
-        .map_err(|e| format!("Could not get app directory: {}", e))?;
+    let app_dir = app.path_resolver()
+        .app_config_dir()
+        .ok_or_else(|| "Could not get app directory".to_string())?;
     let settings_path = app_dir.join("settings.json");
     
     Ok(settings_path.to_string_lossy().to_string())
@@ -1142,23 +1167,21 @@ fn get_settings_path(app: tauri::AppHandle) -> Result<String, String> {
 
 #[tauri::command]
 fn emit_event(app: tauri::AppHandle, event: String, payload: Option<serde_json::Value>) -> Result<(), String> {
-    app.emit(&event, payload)
+    app.emit_all(&event, payload)
         .map_err(|e| format!("Failed to emit event: {}", e))
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_opener::init())
+    Builder::default()
         .invoke_handler(tauri::generate_handler![
             greet,
             load_settings,
             save_settings,
-            generate_report,
             load_reports,
             save_report,
+            validate_tracking_urls,
+            validate_campaign_data,
+            generate_report,
             open_report_in_excel,
             write_report_file,
             delete_report,

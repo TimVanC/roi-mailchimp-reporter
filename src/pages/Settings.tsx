@@ -45,8 +45,9 @@ import {
   ArrowDownward as SortDescIcon,
   FolderOpen as FolderOpenIcon,
 } from '@mui/icons-material';
-import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/tauri';
+import { open } from '@tauri-apps/api/dialog';
+import { checkUpdate, installUpdate } from '@tauri-apps/api/updater';
 
 /**
  * Settings interface that defines the structure of our application configuration
@@ -390,10 +391,8 @@ const Settings = () => {
   const handleCheckUpdate = async () => {
     try {
       setIsCheckingUpdate(true);
-      const { available, manifest } = await invoke<UpdateCheckResult>('plugin:updater|check');
-      
-      if (available && manifest) {
-        console.log('Update available:', manifest);
+      const update = await checkUpdate();
+      if (update.shouldUpdate && update.manifest) {
         setUpdateAvailable(true);
       } else {
         setSnackbar({
@@ -413,8 +412,8 @@ const Settings = () => {
   const handleInstallUpdate = async () => {
     try {
       setIsInstalling(true);
-      await invoke('plugin:updater|install');
-      await invoke('plugin:process|restart');
+      await installUpdate();
+      // No need to restart manually; Tauri handles it
     } catch (error) {
       console.error('Error installing update:', error);
       setUpdateError('Failed to install update');

@@ -17,7 +17,7 @@ import roiLogo from './assets/ROI-white-logo.png';
 import { useReportStore } from './store/reportStore';
 import { getVersion } from '@tauri-apps/api/app';
 import { listen } from '@tauri-apps/api/event';
-import { invoke } from '@tauri-apps/api/core';
+import { checkUpdate, installUpdate } from '@tauri-apps/api/updater';
 import { useEffect, useState } from 'react';
 import { Snackbar, Alert, Button } from '@mui/material';
 
@@ -144,11 +144,8 @@ const App = () => {
 
   const checkForUpdates = async () => {
     try {
-      // Invoke the check-update command
-      const { available } = await invoke<UpdateCheckResult>('plugin:updater|check');
-      
-      if (available) {
-        console.log('Update available');
+      const update = await checkUpdate();
+      if (update.shouldUpdate) {
         setUpdateAvailable(true);
       }
     } catch (error) {
@@ -160,10 +157,8 @@ const App = () => {
   const handleInstallUpdate = async () => {
     try {
       setIsInstalling(true);
-      // Install the update
-      await invoke('plugin:updater|install');
-      // Restart the app
-      await invoke('plugin:process|restart');
+      await installUpdate();
+      // No need to restart manually; Tauri handles it
     } catch (error) {
       console.error('Error installing update:', error);
       setUpdateError('Failed to install update');

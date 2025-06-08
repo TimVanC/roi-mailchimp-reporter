@@ -47,7 +47,7 @@ import {
   Refresh as RefreshIcon,
   FileDownload as FileDownloadIcon,
 } from '@mui/icons-material';
-import { invoke } from '@tauri-apps/api/core';
+import { invoke } from '@tauri-apps/api/tauri';
 import { listen, UnlistenFn } from '@tauri-apps/api/event';
 import type { NewsletterType } from '@/types';
 import { useReportStore } from '@/store/reportStore';
