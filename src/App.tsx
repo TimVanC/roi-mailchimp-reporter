@@ -26,15 +26,6 @@ import RunReport from './pages/RunReport';  // Report generation interface
 import Reports from './pages/Reports';      // Report history and management
 import Settings from './pages/Settings';    // Application configuration
 
-interface UpdateCheckResult {
-  available: boolean;
-  manifest?: {
-    version: string;
-    date: string;
-    body: string;
-  };
-}
-
 /**
  * Global theme configuration using ROI's brand colors and styling preferences
  * This ensures consistent styling across all components and pages

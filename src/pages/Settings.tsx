@@ -60,15 +60,6 @@ interface Settings {
   download_directory: string;     // Where generated reports will be saved
 }
 
-interface UpdateCheckResult {
-  available: boolean;
-  manifest?: {
-    version: string;
-    date: string;
-    body: string;
-  };
-}
-
 /**
  * Main Settings component that provides the configuration interface
  * Handles all settings-related operations and state management
