@@ -1,0 +1,21 @@
+{
+  "identifier": "main-capability",
+  "description": "App capabilities",
+  "windows": ["*"],
+  "permissions": [
+    "core:default",
+    "core:app:default",
+    "core:window:default",
+    "core:webview:default",
+    "core:path:default",
+    "core:event:default",
+    "core:resources:default",
+    "core:menu:default",
+    "core:tray:default",
+    "core:image:default",
+    "dialog:default",
+    "shell:default",
+    "opener:default",
+    "updater:default"
+  ]
+} 
