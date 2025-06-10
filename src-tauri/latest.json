@@ -1,14 +1,14 @@
 {
-  "version": "1.0.93",
-  "notes": "Initial v1.0.93 release.",
+  "version": "1.1.1",
+  "notes": "Initial v1.1.1 release.",
   "pub_date": "2024-03-10T12:00:00Z",
   "platforms": {
     "windows-x86_64": {
-      "url": "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/1.0.93/ROI-Mailchimp-Reporter_1.0.93_x64_en-US.msi",
+      "url": "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/1.1.1/ROI-Mailchimp-Reporter_1.1.1_x64_en-US.msi",
       "signature": "<signature>"
     },
     "darwin-x86_64": {
-      "url": "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/1.0.93/ROI-Mailchimp-Reporter_1.0.93_x64.dmg",
+      "url": "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/1.1.1/ROI-Mailchimp-Reporter_1.1.1_x64.dmg",
       "signature": "<signature>"
     }
   }
