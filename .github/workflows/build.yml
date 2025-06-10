@@ -9,8 +9,19 @@ on:
     branches: [ main ]
 
 jobs:
+  debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Debug Information
+        run: |
+          echo "Event name: ${{ github.event_name }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Ref name: ${{ github.ref_name }}"
+          echo "Is tag: ${{ startsWith(github.ref, 'refs/tags/') }}"
+          echo "Is branch: ${{ startsWith(github.ref, 'refs/heads/') }}"
+
   build-windows:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/heads/') || startsWith(github.ref, 'refs/tags/'))
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
@@ -35,7 +46,7 @@ jobs:
           path: src-tauri/target/release/bundle/msi/*.msi
 
   build-macos:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/')
+    if: github.event_name == 'push' && (startsWith(github.ref, 'refs/heads/') || startsWith(github.ref, 'refs/tags/'))
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
