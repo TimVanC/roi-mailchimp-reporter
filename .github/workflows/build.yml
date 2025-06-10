@@ -73,13 +73,13 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.0.89
-          name: Release v1.0.89
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           files: |
             windows-artifacts/*.msi
             macos-artifacts/*.dmg
           body: |
-            Release v1.0.89
+            Release ${{ github.ref_name }}
             - Updated tauri.conf.json
             - Updated build.yml
             - Generated latest.json for OTA updates
