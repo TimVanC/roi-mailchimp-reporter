@@ -86,29 +86,13 @@ jobs:
         with:
           name: macos-artifacts
           path: macos-artifacts
-      - name: Clean up existing release
-        run: |
-          # Get the release ID if it exists
-          RELEASE_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}")
-          
-          # Check if the response contains an error message
-          if echo "$RELEASE_RESPONSE" | grep -q "Not Found"; then
-            echo "No existing release found for tag ${{ github.ref_name }}"
-          else
-            RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id // empty')
-            if [ ! -z "$RELEASE_ID" ]; then
-              echo "Deleting existing release with ID: $RELEASE_ID"
-              curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID"
-            fi
-          fi
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+      - name: Create or Update Release
+        uses: ncipollo/release-action@v1
         with:
-          tag_name: ${{ github.ref_name }}
+          allowUpdates: true
+          tag: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          files: |
+          artifacts: |
             windows-artifacts/*.msi
             macos-artifacts/*.dmg
           body: |
