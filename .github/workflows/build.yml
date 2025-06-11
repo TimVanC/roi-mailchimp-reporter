@@ -86,6 +86,29 @@ jobs:
         with:
           name: macos-artifacts
           path: macos-artifacts
+      - name: Update latest.json
+        run: |
+          cat > src-tauri/latest.json << EOF
+          {
+            "version": "${{ github.ref_name }}",
+            "notes": "Release ${{ github.ref_name }}",
+            "pub_date": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "platforms": {
+              "darwin-x86_64": {
+                "signature": "",
+                "url": "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/${{ github.ref_name }}/ROI-Mailchimp-Reporter_${{ github.ref_name }}_x64.dmg"
+              },
+              "darwin-aarch64": {
+                "signature": "",
+                "url": "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/${{ github.ref_name }}/ROI-Mailchimp-Reporter_${{ github.ref_name }}_aarch64.dmg"
+              },
+              "windows-x86_64": {
+                "signature": "",
+                "url": "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/${{ github.ref_name }}/ROI.Mailchimp.Reporter_${{ github.ref_name }}_x64_en-US.msi"
+              }
+            }
+          }
+          EOF
       - name: Release
         uses: ncipollo/release-action@v1
         with:
