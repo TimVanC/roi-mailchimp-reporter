@@ -89,7 +89,9 @@ jobs:
       - name: Create or Update Release
         uses: ncipollo/release-action@v1
         with:
+          skipIfReleaseExists: true
           allowUpdates: true
+          replacesArtifacts: false
           tag: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           artifacts: |
