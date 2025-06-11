@@ -86,17 +86,17 @@ jobs:
         with:
           name: macos-artifacts
           path: macos-artifacts
-      - name: Create or Update Release
+      - name: Release
         uses: ncipollo/release-action@v1
         with:
-          skipIfReleaseExists: true
-          allowUpdates: true
-          replacesArtifacts: false
           tag: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
           artifacts: |
             windows-artifacts/*.msi
             macos-artifacts/*.dmg
+            src-tauri/latest.json
+          allowUpdates: true
+          skipIfReleaseExists: false
+          replacesArtifacts: true
           body: |
             Release ${{ github.ref_name }}
             - Updated tauri.conf.json
