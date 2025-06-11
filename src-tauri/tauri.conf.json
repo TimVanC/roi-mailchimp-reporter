@@ -69,7 +69,7 @@
     "updater": {
       "active": true,
       "endpoints": [
-        "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/v1.2.4/latest.json"
+        "https://github.com/TimVanC/roi-mailchimp-reporter/releases/download/v1.2.5/latest.json"
       ],
       "dialog": true,
       "pubkey": null
