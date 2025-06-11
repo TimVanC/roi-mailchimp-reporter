@@ -86,14 +86,22 @@ jobs:
         with:
           name: macos-artifacts
           path: macos-artifacts
-      - name: Delete existing release if it exists
+      - name: Clean up existing release
         run: |
-          RELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}" \
-            | jq -r '.id // empty')
-          if [ ! -z "$RELEASE_ID" ]; then
-            curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-              "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID"
+          # Get the release ID if it exists
+          RELEASE_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/${{ github.ref_name }}")
+          
+          # Check if the response contains an error message
+          if echo "$RELEASE_RESPONSE" | grep -q "Not Found"; then
+            echo "No existing release found for tag ${{ github.ref_name }}"
+          else
+            RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id // empty')
+            if [ ! -z "$RELEASE_ID" ]; then
+              echo "Deleting existing release with ID: $RELEASE_ID"
+              curl -X DELETE -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                "https://api.github.com/repos/${{ github.repository }}/releases/$RELEASE_ID"
+            fi
           fi
       - name: Create Release
         uses: softprops/action-gh-release@v1
