@@ -30,7 +30,10 @@
         "minHeight": 600,
         "decorations": true,
         "transparent": false,
-        "devtools": true
+        "devtools": true,
+        "webviewAttributes": {
+          "devtools": true
+        }
       }
     ]
   },
