@@ -16,7 +16,7 @@
  * - Responsive design for all screen sizes
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   Typography,
@@ -38,13 +38,17 @@ import {
   Box,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers';
-import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { Add as AddIcon, Delete as DeleteIcon, Cancel as CancelIcon } from '@mui/icons-material';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import type { NewsletterType, FormData } from '@/types';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { useReportStore } from '@/store/reportStore';
+
+// Enable custom parse format for dayjs to properly handle date strings
+dayjs.extend(customParseFormat);
 
 /**
  * Snackbar state interface for notifications
@@ -70,7 +74,7 @@ interface Settings {
  * Available newsletter types supported by the application
  * These correspond to different campaign types in Mailchimp
  */
-const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care', 'Breaking News'];
+const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care', 'Breaking News', 'Military Matters'];
 
 /**
  * Progress update interface for tracking report generation status
@@ -128,6 +132,21 @@ const RunReport = () => {
     setFormData,
     resetProgress
   } = useReportStore();
+
+  // Ref to track if generation was cancelled
+  const isCancelledRef = useRef(false);
+
+  // Cancel generation handler
+  const handleCancelGeneration = useCallback(() => {
+    isCancelledRef.current = true;
+    setIsGenerating(false);
+    resetProgress();
+    setSnackbar({
+      open: true,
+      message: 'Report generation cancelled',
+      severity: 'info',
+    });
+  }, [setIsGenerating, resetProgress]);
 
   // React Hook Form setup with persisted data
   const { control, handleSubmit, watch, reset } = useForm<FormData>({
@@ -406,6 +425,9 @@ const RunReport = () => {
   // Form submission handler - generate report
   const onSubmit = async (data: FormData) => {
     try {
+      // Reset cancelled flag at start
+      isCancelledRef.current = false;
+      
       // Save the complete form data
       setFormData(data);
       
@@ -459,6 +481,12 @@ const RunReport = () => {
           },
         }
       });
+
+      // Check if cancelled while waiting for response
+      if (isCancelledRef.current) {
+        console.log('Report generation was cancelled');
+        return;
+      }
 
       // Debug logging
       console.log('Full response:', JSON.stringify(response, null, 2));
@@ -767,7 +795,7 @@ const RunReport = () => {
                 render={({ field }) => (
                   <DatePicker
                     label="Start Date"
-                    value={dayjs(field.value)}
+                    value={field.value ? dayjs(field.value, 'YYYY-MM-DD') : null}
                     onChange={(date) => {
                       const dateStr = date?.format('YYYY-MM-DD');
                       field.onChange(dateStr);
@@ -803,7 +831,7 @@ const RunReport = () => {
                 render={({ field }) => (
                   <DatePicker
                     label="End Date"
-                    value={dayjs(field.value)}
+                    value={field.value ? dayjs(field.value, 'YYYY-MM-DD') : null}
                     onChange={(date) => {
                       const dateStr = date?.format('YYYY-MM-DD');
                       field.onChange(dateStr);
@@ -1035,7 +1063,7 @@ const RunReport = () => {
           )}
           
           {/* Submit Button Section with loading state */}
-          <div className="mt-6 flex justify-center">
+          <div className="mt-6 flex justify-center gap-3">
             <Button
               type="submit"
               variant="contained"
@@ -1064,6 +1092,30 @@ const RunReport = () => {
             >
               {isGenerating ? 'Generating...' : 'Generate Report'}
             </Button>
+            
+            {/* Cancel button - only shown while generating */}
+            {isGenerating && (
+              <Button
+                type="button"
+                variant="outlined"
+                onClick={handleCancelGeneration}
+                startIcon={<CancelIcon />}
+                sx={{
+                  borderColor: '#951521',
+                  color: '#951521',
+                  fontWeight: 600,
+                  letterSpacing: 0.8,
+                  padding: '8px 24px',
+                  '&:hover': {
+                    borderColor: '#7a1019',
+                    backgroundColor: 'rgba(149, 21, 33, 0.05)'
+                  }
+                }}
+                className="px-8 py-2 rounded normal-case font-semibold"
+              >
+                Cancel
+              </Button>
+            )}
           </div>
         </form>
 

@@ -7,7 +7,7 @@
  * Newsletter types supported by the application
  * Corresponds to different ROI newsletter products
  */
-export type NewsletterType = 'AM' | 'PM' | 'Energy' | 'Health Care' | 'Breaking News';
+export type NewsletterType = 'AM' | 'PM' | 'Energy' | 'Health Care' | 'Breaking News' | 'Military Matters';
 
 /**
  * Advertiser interface representing companies buying ad space

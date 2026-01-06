@@ -17,7 +17,7 @@
  * - Real-time updates when new reports are generated
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Table,
   TableBody,
@@ -56,7 +56,7 @@ import { useReportStore } from '@/store/reportStore';
  * Available newsletter types for filtering
  * These match the types supported in the Mailchimp campaigns
  */
-const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care', 'Breaking News'];
+const NEWSLETTER_TYPES: NewsletterType[] = ['AM', 'PM', 'Energy', 'Health Care', 'Breaking News', 'Military Matters'];
 
 /**
  * Batch operation type for confirmation dialog
@@ -77,7 +77,7 @@ const Reports = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const retryCountRef = useRef(0);
   
   // UI state for notifications and confirmations
   const [snackbar, setSnackbar] = useState<{
@@ -102,6 +102,8 @@ const Reports = () => {
     try {
       if (isRefresh) {
         setIsRefreshing(true);
+        // Reset retry count on manual refresh
+        retryCountRef.current = 0;
       } else {
         setIsLoading(true);
       }
@@ -128,17 +130,18 @@ const Reports = () => {
       }
       
       // Reset retry count on successful load
-      setRetryCount(0);
+      retryCountRef.current = 0;
       
     } catch (error) {
       console.error('Failed to load reports:', error);
       
-      if (retryCount < 3) {
+      if (retryCountRef.current < 3) {
+        retryCountRef.current += 1;
         // Retry after 1 second delay
         setTimeout(() => {
-          setRetryCount(prev => prev + 1);
           loadReportsWithRetry(isRefresh);
         }, 1000);
+        return; // Don't set loading to false yet
       } else {
         setError('Failed to load reports. Please try refreshing the page.');
         setSnackbar({
@@ -146,10 +149,13 @@ const Reports = () => {
           message: 'Failed to load reports after multiple attempts',
           severity: 'error'
         });
+        retryCountRef.current = 0; // Reset for next attempt
       }
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (retryCountRef.current === 0) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
   };
 

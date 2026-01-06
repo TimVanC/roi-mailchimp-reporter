@@ -5,11 +5,11 @@
 ## 📥 Download
 
 ### Windows
-- [Download Installer (.msi)](https://timvanc.github.io/roi-mailchimp-reporter/ROI.Mailchimp.Reporter_1.2.7_x64_en-US.msi)
+- [Download Installer (.msi)](https://timvanc.github.io/roi-mailchimp-reporter/ROI.Mailchimp.Reporter_1.2.15_x64_en-US.msi)
 
 ### macOS
-- [Download for Intel Mac (.dmg)](https://timvanc.github.io/roi-mailchimp-reporter/ROI-Mailchimp-Reporter_1.2.7_x64.dmg)
-- [Download for Apple Silicon (.dmg)](https://timvanc.github.io/roi-mailchimp-reporter/ROI-Mailchimp-Reporter_1.2.7_aarch64.dmg)
+- [Download for Intel Mac (.dmg)](https://timvanc.github.io/roi-mailchimp-reporter/ROI-Mailchimp-Reporter_1.2.15_x64.dmg)
+- [Download for Apple Silicon (.dmg)](https://timvanc.github.io/roi-mailchimp-reporter/ROI-Mailchimp-Reporter_1.2.15_aarch64.dmg)
 
 ---
 

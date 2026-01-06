@@ -7,7 +7,7 @@
  * Newsletter types available in Mailchimp campaigns
  * These represent the different newsletter products offered by ROI
  */
-export type NewsletterType = 'AM' | 'PM' | 'Energy' | 'Health Care' | 'Breaking News';
+export type NewsletterType = 'AM' | 'PM' | 'Energy' | 'Health Care' | 'Breaking News' | 'Military Matters';
 
 /**
  * Advertiser entity representing companies placing ads
