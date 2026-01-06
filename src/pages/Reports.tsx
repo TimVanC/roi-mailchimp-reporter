@@ -152,6 +152,7 @@ const Reports = () => {
         retryCountRef.current = 0; // Reset for next attempt
       }
     } finally {
+      // Always reset loading states when retry count is 0 (success or final failure)
       if (retryCountRef.current === 0) {
         setIsLoading(false);
         setIsRefreshing(false);
@@ -164,6 +165,7 @@ const Reports = () => {
    */
   useEffect(() => {
     let unsubscribe: UnlistenFn | undefined;
+    let isReloading = false; // Prevent multiple simultaneous reloads
 
     const initialize = async () => {
       try {
@@ -172,15 +174,24 @@ const Reports = () => {
         
         // Set up event listener for new reports
         unsubscribe = await listen<{ report: any }>('report-generated', async (event) => {
+          // Prevent multiple simultaneous reloads
+          if (isReloading) {
+            console.log('Report reload already in progress, skipping...');
+            return;
+          }
+
           console.log('Received new report:', event.payload.report);
           const newReport = event.payload.report;
           
           try {
+            isReloading = true;
+            
             // Add a small delay to ensure file is written
             await new Promise(resolve => setTimeout(resolve, 500));
             
             // Reload all reports to ensure we have the latest data
-            await loadReportsWithRetry();
+            // Use isRefresh=true to show refresh indicator (loadReportsWithRetry handles the state)
+            await loadReportsWithRetry(true);
             
             // Update advertisers list if needed
             setAdvertisers(prev => {
@@ -196,6 +207,9 @@ const Reports = () => {
               message: 'Report generated but failed to refresh list. Please try manually refreshing.',
               severity: 'warning'
             });
+          } finally {
+            isReloading = false;
+            // loadReportsWithRetry handles setIsRefreshing(false) in its finally block
           }
         });
       } catch (error) {

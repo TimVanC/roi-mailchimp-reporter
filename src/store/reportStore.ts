@@ -50,15 +50,36 @@ export const useReportStore = create<ReportState>()(
       isGenerating: false,
       formData: null,
       progress: initialProgress,
-      reports: [],
+      reports: [], // Reports are NOT persisted - loaded from disk via Rust backend
       setIsGenerating: (isGenerating: boolean) => set((state) => ({ 
         ...state,
         isGenerating 
       })),
-      setFormData: (formData: FormData | null) => set((state) => ({ 
-        ...state,
-        formData 
-      })),
+      setFormData: (formData: FormData | null) => {
+        try {
+          set((state) => ({ 
+            ...state,
+            formData 
+          }));
+        } catch (error: any) {
+          // Handle storage quota exceeded
+          if (error?.name === 'QuotaExceededError' || error?.message?.includes('quota')) {
+            console.warn('Storage quota exceeded, clearing old data...');
+            // Try to clear and retry
+            try {
+              localStorage.removeItem('report-store');
+              set((state) => ({ 
+                ...state,
+                formData 
+              }));
+            } catch (retryError) {
+              console.error('Failed to save form data after clearing storage:', retryError);
+            }
+          } else {
+            throw error;
+          }
+        }
+      },
       setProgress: (progress: Partial<ReportProgress>) => set((state) => ({ 
         ...state,
         progress: {
@@ -97,10 +118,28 @@ export const useReportStore = create<ReportState>()(
     {
       name: 'report-store',
       partialize: (state: ReportState) => ({
+        // Only persist form data and generating state - NOT reports
+        // Reports are already saved to disk via Rust backend
+        // Persisting them causes localStorage quota exceeded errors
         formData: state.formData,
         isGenerating: state.isGenerating,
-        reports: state.reports,
       }),
+      // Add error handling for storage quota
+      onRehydrateStorage: () => (_state, error) => {
+        if (error) {
+          console.error('Error rehydrating store:', error);
+          // If storage is corrupted or quota exceeded, clear it
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes('quota') || errorMessage.includes('QuotaExceededError')) {
+            try {
+              localStorage.removeItem('report-store');
+              console.log('Cleared corrupted storage');
+            } catch (clearError) {
+              console.error('Failed to clear storage:', clearError);
+            }
+          }
+        }
+      },
     }
   )
 ); 
